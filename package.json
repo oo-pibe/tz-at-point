@@ -1,0 +1,45 @@
+{
+  "name": "pinzone",
+  "version": "0.1.0",
+  "description": "The IANA timezone at a coordinate, exact at the points you care about, with no file reads at runtime. Built for serverless.",
+  "keywords": ["timezone", "tz", "iana", "coordinates", "geolocation", "serverless", "lambda", "vercel", "geo-tz"],
+  "license": "MIT",
+  "author": "oo-pibe",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "pinzone": "dist/cli.js"
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc",
+    "test": "node --test test/*.test.ts",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@photostructure/tz-lookup": "^11.6.1"
+  },
+  "peerDependencies": {
+    "geo-tz": ">=8.1.0"
+  },
+  "peerDependenciesMeta": {
+    "geo-tz": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.1",
+    "esbuild": "^0.28.2",
+    "geo-tz": "^8.1.8",
+    "typescript": "^7.0.2"
+  }
+}
