@@ -1,0 +1,15 @@
+{
+  "name": "pinzone",
+  "description": "pinzone, the IANA timezone at a coordinate, as a skill for coding agents",
+  "owner": {
+    "name": "oo-pibe",
+    "url": "https://github.com/oo-pibe"
+  },
+  "plugins": [
+    {
+      "name": "pinzone",
+      "source": "./",
+      "description": "The IANA timezone at a coordinate, exact at the points you care about, with no file reads at runtime. Built for serverless."
+    }
+  ]
+}

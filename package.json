@@ -35,7 +35,9 @@
     "pinzone": "dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "skills",
+    "llms.txt"
   ],
   "engines": {
     "node": ">=22"

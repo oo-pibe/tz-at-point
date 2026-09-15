@@ -1,0 +1,17 @@
+# pinzone
+
+> The IANA timezone at a coordinate, exact at the points you care about, with no file reads at runtime. Build a small JSON table offline with `npx pinzone build`, commit it, and call `createLookup(table)` in serverless code.
+
+pinzone is a TypeScript/JavaScript library and CLI for Node 22+. geo-tz is needed only at build time, as a dev dependency.
+
+## Docs
+
+- [README](README.md): overview, install, quick start, troubleshooting
+- [Agent skill](skills/pinzone/SKILL.md): the workflow and rules a coding agent should follow
+- [API reference](skills/pinzone/references/api.md): `createLookup`, `pointKey`, types and the table format
+- [CLI reference](skills/pinzone/references/cli.md): every command, flag, message and exit code
+- [Setup guide](skills/pinzone/references/setup.md): points files, JSON imports in TypeScript and bundlers, CI
+
+## Optional
+
+- [Contributing](AGENTS.md): architecture, invariants and tests for working on pinzone itself

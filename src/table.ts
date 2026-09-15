@@ -1,7 +1,13 @@
 import { keyOf, latLng, parseKey } from './key.ts';
 import { quote } from './text.ts';
 
-/** The committed table: point key → [IANA zone, safe radius in metres]. */
+/**
+ * The table `pinzone build` writes: point key → [IANA zone, safe radius in metres]. Commit it and don't
+ * edit it by hand; `pinzone build` adds points and `pinzone build --refresh` re-resolves them.
+ *
+ * @example
+ * { "v": 1, "points": { "51.5561,-0.2794": ["Europe/London", 250], "51.4394,4.9275": ["Europe/Amsterdam", 0] } }
+ */
 export interface Table {
   v: 1;
   points: Record<string, [zone: string, radius: number]>;
