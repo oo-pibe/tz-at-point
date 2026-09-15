@@ -188,6 +188,42 @@ test('a missing output directory fails before any work, and paths are printed sa
   assert.equal(r.stderr.trimEnd().split('\n').length, 1, r.stderr);
 });
 
+test('paths and counts in --check output are escaped and read correctly', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  const weird = join(w.dir, 'z\u00f6n\nes.json');
+  const r = run('build', w.points, '-o', weird, '--check');
+  assert.equal(r.status, 1);
+  assert.equal(r.stdout.split('\n').length, 4, r.stdout); // heading, key, run line, trailing newline
+  assert.doesNotMatch(r.stdout, /\u00f6/);
+  assert.match(r.stdout, /run: npx pinzone build/);
+});
+
+test('--max-radius 0 stores radius 0 without claiming every point is on a border', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  const r = run('build', w.points, '-o', w.out, '--max-radius', '0');
+  assert.equal(r.status, 0);
+  assert.equal(readOut(w.out)['51.5561,-0.2794'][1], 0);
+  assert.equal(r.stderr, '');
+});
+
+test('counts read as English', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  run('build', w.points, '-o', w.out);
+  assert.match(run('check', w.out).stdout, /ok: 1 point matches the polygons/);
+  const two = workspace(LANDMARKS.slice(0, 2));
+  run('build', two.points, '-o', two.out);
+  assert.match(run('check', two.out).stdout, /ok: 2 points match the polygons/);
+});
+
+test('a dangling symlink target is created, not replaced by a regular file', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  const real = join(w.dir, 'real.json');
+  symlinkSync(real, w.out);
+  assert.equal(run('build', w.points, '-o', w.out).status, 0);
+  assert.ok(lstatSync(w.out).isSymbolicLink());
+  assert.equal(Object.keys(readOut(real)).length, 1);
+});
+
 test('--help works on subcommands, and extensions are case-insensitive', () => {
   assert.equal(run('build', '--help').status, 0);
   assert.equal(run('check', '-h').status, 0);

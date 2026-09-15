@@ -14,4 +14,4 @@ pinzone is a TypeScript/JavaScript library and CLI for Node 22+. geo-tz is neede
 
 ## Optional
 
-- [Contributing](AGENTS.md): architecture, invariants and tests for working on pinzone itself
+- [Contributing](https://github.com/oo-pibe/pinzone/blob/main/AGENTS.md): architecture, invariants and tests for working on pinzone itself

@@ -106,7 +106,7 @@ Coordinates from real data sources wobble: the same venue can arrive a few meter
 
 Probing is not a proof. A piece of another zone less than about 14 meters across could still sit between probes.
 
-A radius of 0 still answers every coordinate that rounds to that key, which is a cell about 11 meters across. On a border, part of that cell can be in the other zone. `build` warns about every point in your file that rounds to a radius-0 entry, and separately about any point whose own zone differs from its key's zone. Lookups at those points get the key's zone.
+A radius of 0 still answers every coordinate that rounds to that key, which is a cell about 11 meters across. On a border, part of that cell can be in the other zone. `build` warns once per key about points that round to a radius-0 entry, and separately about a point whose own zone differs from its key's zone, which it can only check when that key is first added. Lookups at those points get the key's zone.
 
 ## API
 
@@ -131,7 +131,7 @@ A lookup reads one grid cell, so its cost depends on how many entries overlap th
 
 Options:
 
-- `fallback`: `(lat, lng) => string` for points the table doesn't cover. Defaults to `@photostructure/tz-lookup`. Pass `null` to answer only from the table.
+- `fallback`: `(lat, lng) => string | null | undefined` for points the table doesn't cover. Defaults to `@photostructure/tz-lookup`. Pass `null` to answer only from the table.
 
 ### `pointKey(lat, lng)`
 
@@ -148,7 +148,7 @@ pinzone check <zones.json>
 - `build --check` changes nothing and exits 1 if any point is missing from the table. Put it in CI, next to the step that updates your points. It doesn't need geo-tz.
 - `build --refresh` re-resolves every entry with the current polygons and `--max-radius`, and reports how many entries changed. Use it after upgrading geo-tz, because boundaries do change.
 - `--max-radius` is a multiple of 10, up to 1000. Wider radii take longer to build: about 2,000 probes per point at 250m, about 8,000 at 500m.
-- `check` repeats the build's probes for every entry against the geo-tz you have installed, and exits 1 if a zone has changed or a radius now reaches another zone. It also flags zones your JavaScript runtime doesn't recognize. The fix for a failure is `build --refresh`. Its cost grows with the square of each radius, so give it a timeout if you run it on a table you didn't build.
+- `check` repeats the build's probes for every entry against the geo-tz you have installed, and exits 1 if a zone has changed or a radius now reaches another zone. It also flags zones your JavaScript runtime doesn't recognize. Fix a zone or radius failure with `build --refresh`, and an unrecognized zone by updating Node. Its cost grows with the square of each radius, so give it a timeout if you run it on a table you didn't build.
 
 Exit codes: 0 for success, 1 when a check finds a problem, 2 for bad arguments or input.
 

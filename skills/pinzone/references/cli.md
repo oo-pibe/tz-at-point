@@ -6,7 +6,7 @@ usage:
   pinzone check <zones.json>
 ```
 
-`build` and `check` need geo-tz 8.1 or later installed as a dev dependency, except `build --check`, which doesn't load it. `--help` / `-h` prints the usage and exits 0, before or after a command.
+`build` and `check` need geo-tz installed as a dev dependency (the peer range asks for 8.1 or later, for its `geo-tz/all` export). `build --check`, and a `build` with nothing to resolve, never load it. `--help` / `-h` prints the usage and exits 0, before or after a command.
 
 ## `pinzone build <points> -o <zones.json>`
 
@@ -24,20 +24,21 @@ Adds every point missing from the table and never removes an entry. It never re-
 |---|---|
 | `-o, --out <file>` | The table to create or extend. Required. If it is a symlink, the file it points to is updated and keeps its permissions. |
 | `--check` | Change nothing. Exit 0 if every point is in the table, 1 if any is missing or the table doesn't exist. Doesn't need geo-tz. |
-| `--refresh` | Re-resolve every entry, old and new, with the installed geo-tz and the given `--max-radius`, and report how many changed. Can't be combined with `--check`. |
+| `--refresh` | Re-resolve every entry, old and new, with the installed geo-tz and the given `--max-radius`, and report how many changed (a radius change counts). Pass the same `--max-radius` you built with, or every wider radius shrinks to the default. Can't be combined with `--check`. |
 | `--max-radius <m>` | Largest safe radius to probe. A multiple of 10 from 0 to 1000; default 250. Cost grows with its square: about 2,000 probes per point at 250, 8,000 at 500. |
 | `-h, --help` | Print usage. |
 
-Writes are atomic: a temp file is written and synced, then renamed over the table, so an interrupted build leaves the old table.
+Writes are atomic: a temp file is written and synced, then renamed over the table, so an interrupted build leaves the old table. Paths in messages are escaped to printable ASCII.
 
 **Output**
 
 - `wrote zones.json: 5 points (5 resolved)`: table written. With `--refresh`: `(5 resolved, 1 changed)`.
 - `up to date: 5 points`: nothing to add; the file was not touched. With `--check`, exit 0.
-- `1 point missing from zones.json:` followed by the missing keys and `run: pinzone build points.csv -o zones.json`: from `--check`, exit 1. Run that command and commit the table.
-- `zones.json does not exist yet`: from `--check` when there is no table, exit 1.
-- `warning: 51.4394,4.9275 is within 10m of another zone; lookups that round to it answer Europe/Amsterdam, even from across the border`: the entry has radius 0. Its whole key cell (about 11m) answers one zone. Printed on every build for every point that rounds to such an entry. Not an error.
-- `warning: 51.449039,4.930128 is in Europe/Brussels, but its key 51.4490,4.9301 is in Europe/Amsterdam; lookups there answer Europe/Amsterdam`: the input point is within a few meters of a border, across it from its rounded key. Printed when the point is first added. Move the coordinate onto the correct side if it matters.
+- `1 point missing from zones.json:` followed by the missing keys and `run: npx pinzone build points.csv -o zones.json`: from `--check`, exit 1. Run that command and commit the table. The `run:` line repeats a non-default `--max-radius`.
+- `zones.json does not exist yet`: from `--check` when there is no table, exit 1, followed by the same key list and `run:` line.
+- Counts (`5 points`) are entries in the table, not lines in the points file: several coordinates can round to one key.
+- `warning: 51.4394,4.9275 is within 10m of another zone; lookups that round to it answer Europe/Amsterdam, even from across the border`: the entry has radius 0. Its whole key cell (about 11m) answers one zone. Printed on stderr, once per key, on every build whose points include one. Not an error, and not printed with `--check` or when you passed `--max-radius 0`.
+- `warning: 51.449039,4.930128 is in Europe/Brussels, but its key 51.4490,4.9301 is in Europe/Amsterdam; lookups there answer Europe/Amsterdam`: the input point is within a few meters of a border, across it from its rounded key. On stderr. Only points whose key is added in that run are compared, so a new point that shares an existing key is never checked. Move the coordinate onto the correct side if it matters.
 - `...and 12 more`: lists are cut at 20 lines.
 
 ## `pinzone check <zones.json>`
@@ -46,7 +47,7 @@ Re-runs build's probes for every entry against the installed geo-tz, and checks 
 
 **Output**
 
-- `ok: 5 points match the polygons`: exit 0.
+- `ok: 5 points match the polygons` (`1 point matches`): exit 0.
 - `FAIL 51.4926,7.4519: table says Europe/Paris, polygons say Europe/Berlin`: the entry's zone is wrong for the installed geo-tz: the table was edited, merged badly, or boundaries changed. Exit 1.
 - `FAIL 51.4394,4.9275: radius 500m reaches another zone`: a probe inside the stored radius found another zone. Exit 1.
 - `FAIL America/Ciudad_Juarez: not a zone this runtime's Intl accepts`: the Node/ICU running `check` doesn't know that zone. Exit 1.
@@ -60,7 +61,7 @@ Every error line starts with `pinzone: ` and exits 2.
 | Message | Cause |
 |---|---|
 | the usage text | Missing or extra arguments, or an unknown command |
-| `Unknown option '--x'` | A flag that doesn't exist |
+| `Unknown option '--x'. …` | A flag that doesn't exist |
 | `this command needs geo-tz 8.1 or later: npm install --save-dev geo-tz` | geo-tz missing or too old |
 | `zones.json: not valid JSON` | The file isn't JSON. Its content is never echoed. |
 | `points.txt: points must be a .json or .csv file` | Wrong extension |

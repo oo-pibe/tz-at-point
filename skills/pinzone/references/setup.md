@@ -29,11 +29,11 @@ The table must be imported, not read with `fs`, so the bundler embeds it.
 
 | Setup | Import |
 |---|---|
-| Node ESM, TypeScript `module: nodenext` | `import table from './zones.json' with { type: 'json' };` (required form; TypeScript 5.3+) |
+| Node ESM, TypeScript `module: nodenext` | `import table from './zones.json' with { type: 'json' };` Node requires the attribute; TypeScript accepts it from 5.3 and enforces it from 5.7. `module: node16` rejects it. |
 | Bundlers: Next.js, Vite, esbuild, webpack, TypeScript `moduleResolution: bundler` | `import table from './zones.json';` also works |
-| CommonJS | `const table = require('./zones.json');` |
+| CommonJS | `const table = require('./zones.json');` works, but `require('pinzone')` needs Node 22.12 or later |
 
-- Add `"resolveJsonModule": true` to `tsconfig.json`.
+- Add `"resolveJsonModule": true` to `tsconfig.json` (needed on TypeScript 5.3 to 5.8 with nodenext; harmless otherwise).
 - Node prints no warning for JSON imports from 22.12 on.
 - Import other data the function needs (venue lists) the same way. A `readFileSync` of a data file in a serverless handler fails for the same reason geo-tz does. If that data is a CSV, keep it as JSON instead and pass the JSON to `pinzone build`, or generate the JSON from the CSV with a script and commit both.
 - If a bundler rejects the `with { type: 'json' }` syntax, use the plain `import table from './zones.json'` form.
@@ -67,7 +67,8 @@ import venues from '../data/venues.json' with { type: 'json' };
 import { zoneAt } from '../src/zones.js';
 
 test('every venue resolves from the committed table', () => {
-  for (const v of venues) assert.notEqual(zoneAt(v.lat, v.lng).source, 'raster', v.name);
+  // Not notEqual(source, 'raster'): that also passes for { zone: null }, which is what a bad coordinate gives.
+  for (const v of venues) assert.ok(['table', 'table-near'].includes(zoneAt(v.lat, v.lng).source), v.name);
 });
 ```
 
@@ -90,7 +91,7 @@ Treat any change to the installed geo-tz version as a boundary-data change, incl
 
 ```sh
 npm install --save-dev geo-tz@latest
-npx pinzone build data/points.csv -o data/zones.json --refresh
+npx pinzone build data/points.csv -o data/zones.json --refresh   # add the same --max-radius you build with
 npx pinzone check data/zones.json
 git diff data/zones.json
 ```

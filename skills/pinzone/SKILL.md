@@ -10,10 +10,11 @@ pinzone answers the IANA timezone at a coordinate. `pinzone build` resolves your
 
 Everything below is verified against the package. You don't need to read pinzone's `dist/` source: the answers are here and in `references/`.
 
+pinzone answers with a zone name, never a UTC offset. Get the offset for a given moment from `Intl.DateTimeFormat` with that `timeZone`.
+
 ## When not to use it
 
 - Every point is far from any border and an approximate answer is fine: `@photostructure/tz-lookup` alone is enough.
-- You need a UTC offset, not a zone: get the zone from pinzone, then use `Intl.DateTimeFormat` with `timeZone`.
 - Browser-only code with no build step to produce the table.
 
 ## Checklist
@@ -23,7 +24,7 @@ Copy this and tick it off.
 ```
 - [ ] npm install pinzone && npm install --save-dev geo-tz   (this also moves geo-tz out of dependencies)
 - [ ] Points file: .csv with `lat` and `lng` header columns, or .json array of [lat, lng] / { lat, lng } (extra fields ignored)
-- [ ] npx pinzone build <points> -o <zones.json>        (read every warning line)
+- [ ] npx pinzone build <points> -o <zones.json>        (warnings go to stderr: read them)
 - [ ] Commit zones.json next to the code that imports it
 - [ ] Import the table as JSON and call createLookup(table) once, at module scope
 - [ ] Remove every runtime readFileSync of data files: import them as JSON too (see "Data the function reads")
@@ -54,7 +55,7 @@ export function localKickoff(lat, lng, utcIso) {
   if (zone === null) return null; // not a coordinate, or no fallback answer
   return new Intl.DateTimeFormat('en-GB', {
     timeZone: zone, weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-  }).format(new Date(utcIso)); // 'Mon 21 Sept, 00:30'
+  }).format(new Date(utcIso)); // 'Mon 21 Sept, 00:30' on Node 22.12+; punctuation varies with the runtime's ICU
 }
 ```
 
@@ -62,7 +63,8 @@ The local date can differ from the UTC date. If the user asks for a time only (`
 
 ```js
 // Tests (not the handler) may read files. Every known point must come from the table:
-for (const v of venues) assert.notEqual(zoneAt(v.lat, v.lng).source, 'raster', `${v.name}: zones.json is stale`);
+for (const v of venues) assert.ok(['table', 'table-near'].includes(zoneAt(v.lat, v.lng).source), `${v.name}: zones.json is stale`);
+// not notEqual(source, 'raster'): that also passes for { zone: null } from bad coordinates
 ```
 
 - The JSON import is what puts the table inside the bundle. Reading `zones.json` with `fs` at runtime brings back the serverless file problem.
@@ -85,13 +87,13 @@ for (const v of venues) assert.notEqual(zoneAt(v.lat, v.lng).source, 'raster', `
 | Output | Meaning | Action |
 |---|---|---|
 | `wrote zones.json: N points (M resolved)` | Table written | Commit it |
-| `up to date: 5 points` | No point is missing. `build` never re-validates existing entries; that is `check`'s job | None |
-| `1 point missing from …` (exit 1) | `--check` found points not in the table | Run the `run: pinzone build …` line it prints, commit |
-| `warning: KEY is within 10m of another zone; …` | That entry has radius 0: its whole ~11m key cell answers one zone, even the part across the border. Repeats on every build | Nothing, unless the point should be in the other zone. If the second warning below was never printed for it, the point is on its key's side. When both zones keep the same clocks (Amsterdam and Brussels), local times are unaffected either way |
-| `warning: LAT,LNG is in A, but its key KEY is in B; …` | The point itself is across the border from its rounded key | Lookups there answer B. Nudge the coordinate onto the correct side if it matters |
-| `FAIL KEY: table says A, polygons say B` (exit 1) | Table disagrees with the installed geo-tz (edited, merged badly, or boundaries changed) | `pinzone build <points> -o <zones.json> --refresh`, then `check`, review `git diff`, commit |
+| `up to date: 5 points` | No point is missing. The count is table entries, not lines in your points file. `build` never re-validates existing entries; that is `check`'s job | None |
+| `1 point missing from …` (exit 1) | `--check` found points not in the table, or there is no table yet | Run the `run: npx pinzone build …` line it prints, commit |
+| `warning: KEY is within 10m of another zone; …` | That entry has radius 0: its whole ~11m key cell answers one zone, even the part across the border. Repeats on every build | Nothing, unless the point should be in the other zone. When both zones keep the same clocks (Amsterdam and Brussels), local times are unaffected either way. To check a specific point, resolve it with `geo-tz/all` yourself |
+| `warning: LAT,LNG is in A, but its key KEY is in B; …` | The point itself is across the border from its rounded key. Printed only when that key is first added, so silence does not prove a point is on its key's side | Lookups there answer B. Nudge the coordinate onto the correct side if it matters |
+| `FAIL KEY: table says A, polygons say B` (exit 1) | Table disagrees with the installed geo-tz (edited, merged badly, or boundaries changed) | `npx pinzone build <points> -o <zones.json> --refresh` with the same `--max-radius` you built with, then `check`, review `git diff`, commit |
 | `FAIL KEY: radius Rm reaches another zone` | Boundaries moved closer | Same as above |
-| `FAIL ZONE: not a zone this runtime's Intl accepts` | The Node running `check` is too old for that zone | Update Node (`fix: update Node` line); `--refresh` won't help |
+| `FAIL ZONE: not a zone this runtime's Intl accepts` | The Node running `check` is too old for that zone | Update Node. Refreshing won't change the name, unless the same entry also failed with `table says …` |
 | `pinzone: …` (exit 2) | Bad arguments or input | Read the message; see references/cli.md |
 
 Exit codes: 0 success, 1 a check found a problem, 2 bad arguments or input.

@@ -12,7 +12,7 @@ Node 22 or later. Published types work with TypeScript 5.0 or later.
 function createLookup(table: unknown, options?: Options): Lookup;
 ```
 
-Builds a lookup from a table written by `pinzone build`. Call it once per process, at module scope: it validates the table and builds a grid index (about 75ms and 13MB for 30,000 entries). Each lookup then takes about a microsecond.
+Builds a lookup from a table written by `pinzone build`. Call it once per process, at module scope: it validates the table and builds a grid index. For 30,000 entries that took 60-270ms and about 10MB of heap at radius 250, more as radii grow. Each lookup then takes a microsecond or so.
 
 - `table` is typed `unknown` so a JSON import passes without a cast. It is validated at runtime.
 - Throws a `TypeError` if the table is malformed. The message starts with `pinzone table:` and names the first bad entry.
@@ -60,7 +60,12 @@ type Result = { zone: string; source: Source } | { zone: null; source: null };
 function pointKey(lat: unknown, lng: unknown): string | null;
 ```
 
-The table key for a coordinate: `pointKey(51.55614, -0.27936)` is `'51.5561,-0.2794'`. Returns `null` when the input is not a coordinate. Longitude -180 is written as 180. Useful for checking whether a point is in a table: `pointKey(lat, lng) in table.points`.
+The table key for a coordinate: `pointKey(51.55614, -0.27936)` is `'51.5561,-0.2794'`. Returns `null` when the input is not a coordinate. Longitude -180 is written as 180. Useful for checking whether a point is in a table:
+
+```ts
+const key = pointKey(lat, lng);
+const known = key !== null && Object.hasOwn(table.points, key);
+```
 
 ## `Table`
 
@@ -83,6 +88,6 @@ interface Table {
 
 - Keys: `lat,lng`, each with exactly 4 decimals, as `pointKey` produces them.
 - Zone: an IANA name, letters, digits, `_`, `+`, `-`, up to three `/`-separated parts.
-- Radius: meters, a multiple of 10 from 0 to 1000. It is the widest disc around the key in which build's probes (10m apart) all found the same zone. Radius 0 means another zone is within 10m.
+- Radius: meters, a multiple of 10 from 0 to 1000. It is the widest disc around the key in which build's probes (10m apart) all found the same zone, capped by `--max-radius`. Radius 0 means another zone is within 10m, unless the table was built with `--max-radius 0`.
 - The zone and radius are for the rounded key, not for the original input coordinate.
 - `pinzone build` writes keys sorted, one entry per line. Don't edit the file by hand.

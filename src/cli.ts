@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { randomUUID } from 'node:crypto';
 import {
-  accessSync, closeSync, constants, existsSync, fchmodSync, fsyncSync, openSync, readFileSync, realpathSync, renameSync,
-  rmSync, statSync, writeFileSync,
+  accessSync, closeSync, constants, existsSync, fchmodSync, fsyncSync, lstatSync, openSync, readFileSync, readlinkSync,
+  realpathSync, renameSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
 import { basename, dirname, join, resolve as resolvePath } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -17,6 +17,7 @@ const USAGE = `usage:
   pinzone check <zones.json>`;
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const verb = (n: number, singular: string, plural_: string) => (n === 1 ? singular : plural_);
 
 /** A path as it can be pasted into a POSIX shell. */
 const shellQuote = (path: string) => (/^[\w./-]+$/.test(path) ? path : `'${path.replace(/'/g, `'\\''`)}'`);
@@ -61,7 +62,9 @@ function readPoints(file: string): Point[] {
 
 /** The real file behind `out` (following a symlink), after checking its directory is writable. */
 function writableTarget(out: string): string {
-  const target = existsSync(out) ? realpathSync(out) : resolvePath(out);
+  // A symlink is followed even when its target does not exist yet, so the link survives the write.
+  const link = lstatSync(out, { throwIfNoEntry: false })?.isSymbolicLink() ? resolvePath(dirname(out), readlinkSync(out)) : out;
+  const target = existsSync(link) ? realpathSync(link) : resolvePath(link);
   accessSync(dirname(target), constants.W_OK);
   return target;
 }
@@ -139,9 +142,10 @@ async function build(args: string[]): Promise<number> {
       console.log(`up to date: ${plural(table.size, 'point')}`);
       return 0;
     }
-    console.log(exists ? `${plural(todo.size, 'point')} missing from ${out}:` : `${out} does not exist yet`);
+    console.log(printable(exists ? `${plural(todo.size, 'point')} missing from ${out}:` : `${out} does not exist yet`));
     printCapped([...todo].sort().map((key) => `  ${key}`));
-    console.log(printable(`run: pinzone build ${shellQuote(input)} -o ${shellQuote(out)}`));
+    const sameRadius = values['max-radius'] === '250' ? '' : ` --max-radius ${maxRadius}`;
+    console.log(printable(`run: npx pinzone build ${shellQuote(input)} -o ${shellQuote(out)}${sameRadius}`));
     return 1;
   }
 
@@ -171,7 +175,8 @@ async function build(args: string[]): Promise<number> {
   }
 
   // A radius-0 entry still answers its whole ~11m key cell, including any part of it across the border.
-  for (const p of points) {
+  // With --max-radius 0 every entry is 0 by request, which says nothing about borders.
+  for (const p of maxRadius === 0 ? [] : points) {
     const [zone, radius] = table.get(p.key)!;
     if (radius === 0) warnings.add(`warning: ${p.key} is within 10m of another zone; lookups that round to it answer ${zone}, even from across the border`);
   }
@@ -206,7 +211,7 @@ async function check(args: string[]): Promise<number> {
   }
 
   if (unknownZones.length === 0 && stale.length === 0) {
-    console.log(`ok: ${plural(entries.length, 'point')} match the polygons`);
+    console.log(`ok: ${plural(entries.length, 'point')} ${verb(entries.length, 'matches', 'match')} the polygons`);
     return 0;
   }
   printCapped([...unknownZones, ...stale]);
