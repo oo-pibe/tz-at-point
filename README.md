@@ -18,7 +18,7 @@ zoneAt(40.4168, -3.7038); // { zone: 'Europe/Madrid', source: 'raster' }
 
 There are two good ways to turn a coordinate into a timezone in JavaScript, and each has a catch.
 
-[geo-tz](https://github.com/evansiroky/node-geo-tz) is exact, because it uses the real boundary polygons. But it reads them from data files on disk (about 29MB for one dataset, 70MB for the package), and a bundler doesn't copy those files. Inside a bundled serverless function, every lookup that needs them throws. You can copy the data yourself and point `GEO_TZ_DATA_PATH` at it, but then every deploy carries it.
+[geo-tz](https://github.com/evansiroky/node-geo-tz) is exact, because it uses the real boundary polygons. But it reads them from data files on disk (about 30MB for one dataset, 70MB for the package), and a bundler doesn't copy those files. Inside a bundled serverless function, every lookup that needs them throws. You can copy the data yourself and point `GEO_TZ_DATA_PATH` at it, but then every deploy carries it.
 
 [@photostructure/tz-lookup](https://github.com/photostructure/tz-lookup) is a compressed grid of the same boundaries. It's 73KB of JavaScript and reads no files, so it works anywhere. It's also approximate. Near a border it can return the neighboring zone, and the neighbor doesn't always keep the same clocks. Checked against the polygons:
 
@@ -27,7 +27,7 @@ There are two good ways to turn a coordinate into a timezone in JavaScript, and 
 | Tornio, Finland | 65.8481, 24.1466 | Europe/Stockholm | Europe/Helsinki | 1 hour |
 | Tabatinga, Brazil | -4.2527, -69.9381 | America/Eirunepe | America/Manaus | 1 hour |
 
-I tested 29 border towns and it got 27 right. Across uniformly random land points, it returns a zone with a different UTC offset from the true one for about 1.7% of Europe, 2.7% of North America and 3.5% of the world.
+Most places come out right; the misses cluster along borders. Compared against geo-tz at uniformly random points on land, the raster returns a zone with a different UTC offset for about 3% of the world, 2.7% of North America and 1 to 2% of Europe.
 
 If your points are city centers nowhere near a border, the raster alone is probably fine. If some of them sit near a border and a wrong hour matters, pinzone gives you polygon answers at those points and keeps the raster for everything else.
 
@@ -38,7 +38,7 @@ npm install pinzone
 npm install --save-dev geo-tz   # only needed to build and check the table
 ```
 
-Node 22 or later.
+Node 22 or later. The published types work with TypeScript 5.0 or later.
 
 ## Quick start
 
@@ -80,11 +80,11 @@ Importing the table this way puts it inside your bundle, so nothing is read from
 
 Each key is a coordinate rounded to 4 decimal places, which is about 11 meters, and the zone stored is the zone at that rounded coordinate. Each value is the zone and a safe radius in meters.
 
-Coordinates from real data sources wobble: the same venue can arrive a few meters to the east next week. The safe radius handles that. When the table is built, pinzone probes the whole disc around each point, on rings 10 meters apart with probes no more than 10 meters apart along each ring, and keeps the widest radius (250m by default) where every probe is in the same zone. A later lookup within that distance of the point gets the table's answer (`source: 'table-near'`). Baarle-Nassau, where Dutch and Belgian enclaves interlock street by street, gets a radius of 0.
+Coordinates from real data sources wobble: the same venue can arrive a few meters to the east next week. The safe radius handles that. When the table is built, pinzone probes the whole disc around each rounded key, on rings 10 meters apart with probes no more than 10 meters apart along each ring, and keeps the widest radius (250m by default) where every probe is in the same zone. A later lookup within that distance of the point gets the table's answer (`source: 'table-near'`). Baarle-Nassau, where Dutch and Belgian enclaves interlock street by street, gets a radius of 0.
 
 Probing is not a proof. A piece of another zone less than about 14 meters across could still sit between probes.
 
-If a point is so close to a border that the point and its rounded key fall in different zones, `build` prints a warning naming it. Lookups at that point get the key's zone.
+A radius of 0 still answers every coordinate that rounds to that key, which is a cell about 11 meters across. On a border, part of that cell can be in the other zone. `build` warns about every point in your file that rounds to a radius-0 entry, and separately about any point whose own zone differs from its key's zone. Lookups at those points get the key's zone.
 
 ## API
 
@@ -122,11 +122,11 @@ pinzone build <points.json|points.csv> -o <zones.json> [--check | --refresh] [--
 pinzone check <zones.json>
 ```
 
-- `build` adds points that are missing from the table and never removes any. A place that disappears from your data for a season is still resolved when it comes back. If nothing is missing, it doesn't touch the file. When it does write, it writes a temporary file and renames it, so a failed write can't leave a half-written table.
+- `build` adds points that are missing from the table and never removes any. A place that disappears from your data for a season is still resolved when it comes back. If nothing is missing, it doesn't touch the file. When it does write, it writes and syncs a temporary file, then renames it over the table (following a symlink if the table is one), so a failed write or a crash leaves the old table in place.
 - `build --check` changes nothing and exits 1 if any point is missing from the table. Put it in CI, next to the step that updates your points. It doesn't need geo-tz.
-- `build --refresh` re-resolves every entry with the current polygons and `--max-radius`. Use it after upgrading geo-tz, because boundaries do change.
+- `build --refresh` re-resolves every entry with the current polygons and `--max-radius`, and reports how many entries changed. Use it after upgrading geo-tz, because boundaries do change.
 - `--max-radius` is a multiple of 10, up to 1000. Wider radii take longer to build: about 2,000 probes per point at 250m, about 8,000 at 500m.
-- `check` repeats the build's probes for every entry against the geo-tz you have installed, and exits 1 if a zone has changed or a radius now reaches another zone. It also flags zones your JavaScript runtime doesn't recognize. The fix for a failure is `build --refresh`.
+- `check` repeats the build's probes for every entry against the geo-tz you have installed, and exits 1 if a zone has changed or a radius now reaches another zone. It also flags zones your JavaScript runtime doesn't recognize. The fix for a failure is `build --refresh`. Its cost grows with the square of each radius, so give it a timeout if you run it on a table you didn't build.
 
 Exit codes: 0 for success, 1 when a check finds a problem, 2 for bad arguments or input.
 

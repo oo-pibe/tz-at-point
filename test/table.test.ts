@@ -43,6 +43,17 @@ test('error messages escape what the table contains, so a table cannot write int
   assert.throws(() => readTable(table), (err: Error) => !err.message.includes('\n'));
 });
 
+test('error messages are short and printable, whatever the table holds', () => {
+  const long = 'x'.repeat(5000) + '\u202e\u2028\u009b';
+  for (const table of [{ v: long, points: {} }, { v: 1, points: { [long]: ['UTC', 0] } }, { v: 1, points: { '1.0000,1.0000': ['UTC', long] } }]) {
+    assert.throws(() => readTable(table), (err: Error) => err.message.length < 200 && /^[\x20-\x7e]*$/.test(err.message));
+  }
+});
+
+test('inherited properties are not a table', () => {
+  assert.throws(() => readTable(Object.create({ v: 1, points: {} })), TypeError);
+});
+
 test('formats one sorted entry per line and round-trips', () => {
   const text = formatTable(new Map([['51.5561,-0.2794', ['Europe/London', 500]], ['35.8854,-5.3279', ['Africa/Ceuta', 0]]]));
   assert.equal(text, '{\n  "v": 1,\n  "points": {\n    "35.8854,-5.3279": ["Africa/Ceuta",0],\n    "51.5561,-0.2794": ["Europe/London",500]\n  }\n}\n');

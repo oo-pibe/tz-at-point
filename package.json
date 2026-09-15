@@ -62,5 +62,6 @@
     "esbuild": "^0.28.2",
     "geo-tz": "^8.1.8",
     "typescript": "^7.0.2"
-  }
+  },
+  "sideEffects": false
 }

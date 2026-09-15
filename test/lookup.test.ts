@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { destination, metres } from '../src/geo.ts';
 import { createLookup, pointKey } from '../src/index.ts';
+import { cellsReached } from '../src/lookup.ts';
 import { readTable } from '../src/table.ts';
 
 const table = {
@@ -89,4 +90,17 @@ test('near search works across the antimeridian', () => {
   const [lat, lng] = destination(-17, 180, 200, 90);
   assert.ok(lng < 0);
   assert.deepEqual(fiji(lat, lng), { zone: 'Pacific/Fiji', source: 'table-near' });
+});
+
+test('an entry of any radius reaches only a handful of grid cells, even at the poles', () => {
+  for (const lat of [0, 45, 60, 80, 88.5, 88.99, 89, 89.5, 89.99, 90, -89.995, -90]) {
+    for (const lng of [-180, 0, 179.99]) {
+      const reached = [...cellsReached({ key: '', lat, lng, zone: 'UTC', radius: 1000 })].length;
+      assert.ok(reached <= 12, `${lat},${lng} reaches ${reached} cells`);
+    }
+  }
+});
+
+test('a custom fallback cannot hand back something that is not a zone name', () => {
+  assert.deepEqual(createLookup(table, { fallback: () => '<script>' })(48.85, 2.35), { zone: null, source: null });
 });

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, lstatSync, mkdtempSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -130,4 +130,57 @@ test('usage errors exit 2 with one message, not a stack trace', () => {
     assert.match(r.stderr, /^pinzone: /, args.join(' '));
     assert.doesNotMatch(r.stderr, /\n\s+at /, args.join(' '));
   }
+});
+
+test('every point that rounds onto a border entry is warned about, new or not', () => {
+  const w = workspace([[51.4394, 4.9275]]); // Baarle-Nassau: radius 0
+  const first = run('build', w.points, '-o', w.out);
+  assert.equal(first.status, 0);
+  assert.match(first.stderr, /warning: 51\.4394,4\.9275 is within 10m of another zone/);
+  writeFileSync(w.points, JSON.stringify([[51.43941, 4.92751], [51.43942, 4.92752]]));
+  const again = run('build', w.points, '-o', w.out);
+  assert.equal(again.status, 0);
+  assert.match(again.stdout, /up to date/);
+  assert.equal(again.stderr.match(/within 10m/g)?.length, 1); // two points, one key, one warning
+});
+
+test('an empty points file still creates a table to import', () => {
+  const w = workspace([]);
+  assert.equal(run('build', w.points, '-o', w.out, '--check').status, 1); // no table yet
+  assert.equal(run('build', w.points, '-o', w.out).status, 0);
+  assert.deepEqual(readOut(w.out), {});
+});
+
+test('--refresh says how many entries changed', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  assert.equal(run('build', w.points, '-o', w.out).status, 0);
+  writeFileSync(w.out, JSON.stringify({ v: 1, points: { '51.5561,-0.2794': ['Europe/Paris', 250] } }));
+  assert.match(run('build', w.points, '-o', w.out, '--refresh').stdout, /1 changed/);
+});
+
+test('writes through a symlinked table, keeps its permissions, and leaves no temp files', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  const real = join(w.dir, 'real.json');
+  writeFileSync(real, '{"v":1,"points":{}}');
+  chmodSync(real, 0o600);
+  symlinkSync(real, w.out);
+  assert.equal(run('build', w.points, '-o', w.out).status, 0);
+  assert.ok(lstatSync(w.out).isSymbolicLink());
+  assert.equal(Object.keys(readOut(real)).length, 1);
+  assert.equal(statSync(real).mode & 0o777, 0o600);
+  assert.deepEqual(readdirSync(w.dir).sort(), ['points.json', 'real.json', 'zones.json']);
+});
+
+test('a missing output directory fails before any work, and paths are printed safely', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  const r = run('build', w.points, '-o', join(w.dir, 'no\n::error::dir', 'zones.json'));
+  assert.equal(r.status, 2);
+  assert.equal(r.stderr.trimEnd().split('\n').length, 1, r.stderr);
+});
+
+test('--help works on subcommands, and extensions are case-insensitive', () => {
+  assert.equal(run('build', '--help').status, 0);
+  assert.equal(run('check', '-h').status, 0);
+  const w = workspace(LANDMARKS.slice(0, 1), 'POINTS.JSON');
+  assert.equal(run('build', w.points, '-o', w.out).status, 0);
 });
