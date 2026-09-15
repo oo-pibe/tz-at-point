@@ -2,10 +2,29 @@
   "name": "pinzone",
   "version": "0.1.0",
   "description": "The IANA timezone at a coordinate, exact at the points you care about, with no file reads at runtime. Built for serverless.",
-  "keywords": ["timezone", "tz", "iana", "coordinates", "geolocation", "serverless", "lambda", "vercel", "geo-tz"],
+  "keywords": [
+    "timezone",
+    "tz",
+    "iana",
+    "coordinates",
+    "geolocation",
+    "serverless",
+    "lambda",
+    "vercel",
+    "geo-tz"
+  ],
   "license": "MIT",
   "author": "oo-pibe",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oo-pibe/pinzone.git"
+  },
+  "homepage": "https://github.com/oo-pibe/pinzone#readme",
+  "bugs": {
+    "url": "https://github.com/oo-pibe/pinzone/issues"
+  },
   "type": "module",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -15,12 +34,14 @@
   "bin": {
     "pinzone": "dist/cli.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc",
     "test": "node --test test/*.test.ts",
     "prepack": "npm run build"
@@ -29,7 +50,7 @@
     "@photostructure/tz-lookup": "^11.6.1"
   },
   "peerDependencies": {
-    "geo-tz": ">=8.1.0"
+    "geo-tz": "^8.1.0"
   },
   "peerDependenciesMeta": {
     "geo-tz": {

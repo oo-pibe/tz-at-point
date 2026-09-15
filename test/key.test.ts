@@ -20,5 +20,10 @@ test('anything that is not a coordinate has no key', () => {
 
 test('the edges of the globe are coordinates', () => {
   assert.equal(pointKey(90, 180), '90.0000,180.0000');
-  assert.equal(pointKey(-90, -180), '-90.0000,-180.0000');
+  assert.equal(pointKey(-90, -180), '-90.0000,180.0000');
+});
+
+test('longitude 180 and -180 are the same meridian, so they key the same', () => {
+  assert.equal(pointKey(0, -180), '0.0000,180.0000');
+  assert.equal(pointKey(0, -179.99999), '0.0000,180.0000');
 });

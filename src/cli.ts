@@ -1,35 +1,54 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { destination } from './geo.ts';
 import { pointKey } from './key.ts';
-import { createLookup } from './lookup.ts';
 import { parsePoints } from './points.ts';
-import { safeRadius } from './radius.ts';
+import { PROBE_SPACING, safeRadius } from './radius.ts';
 import type { Find } from './radius.ts';
 import { formatTable, MAX_RADIUS, readTable } from './table.ts';
 
 const USAGE = `usage:
-  pinzone build <points.json|points.csv> -o <zones.json> [--check | --refresh] [--max-radius 500]
-  pinzone check <zones.json> [--samples 8] [--seed 1]`;
+  pinzone build <points.json|points.csv> -o <zones.json> [--check | --refresh] [--max-radius 250]
+  pinzone check <zones.json>`;
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 async function loadFind(): Promise<Find> {
-  let geoTz;
+  let geoTz: typeof import('geo-tz/all');
   try {
     // geo-tz/all, not the default export: the default dataset merges zones that have shared rules
     // since 1970, and answers Tromsø as Europe/Berlin.
     geoTz = await import('geo-tz/all');
-  } catch {
-    throw new Error('this command needs geo-tz: npm install --save-dev geo-tz');
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code === 'ERR_MODULE_NOT_FOUND' || code === 'ERR_PACKAGE_PATH_NOT_EXPORTED') {
+      throw new Error('this command needs geo-tz 8.1 or later: npm install --save-dev geo-tz');
+    }
+    throw err;
   }
   return (lat, lng) => geoTz.find(lat, lng)[0];
 }
 
-function integer(value: string | undefined, name: string, fallback: number, max: number): number {
-  if (value === undefined) return fallback;
-  const n = Number(value);
-  if (!Number.isInteger(n) || n < 0 || n > max) throw new Error(`--${name} must be an integer from 0 to ${max}`);
-  return n;
+function readTableFile(file: string): Map<string, [string, number]> {
+  let json: unknown;
+  try {
+    json = JSON.parse(readFileSync(file, 'utf8').replace(/^﻿/, ''));
+  } catch (err) {
+    // Not the parser's message: it quotes the file, and the file may not be what the user meant to pass.
+    throw err instanceof SyntaxError ? new Error(`${file}: not valid JSON`) : err;
+  }
+  return new Map(readTable(json).map((e) => [e.key, [e.zone, e.radius]]));
+}
+
+/** Replace `file` in one rename, so a failed write never leaves a truncated table behind. */
+function writeAtomically(file: string, text: string): void {
+  const temp = `${file}.${process.pid}.tmp`;
+  try {
+    writeFileSync(temp, text);
+    renameSync(temp, file);
+  } finally {
+    rmSync(temp, { force: true });
+  }
 }
 
 async function build(args: string[]): Promise<number> {
@@ -40,33 +59,40 @@ async function build(args: string[]): Promise<number> {
       out: { type: 'string', short: 'o' },
       check: { type: 'boolean' },
       refresh: { type: 'boolean' },
-      'max-radius': { type: 'string' },
+      'max-radius': { type: 'string', default: '250' },
     },
   });
   const [input] = positionals;
   const out = values.out;
   if (!input || !out || positionals.length > 1) throw new Error(USAGE);
   if (values.check && values.refresh) throw new Error('--check and --refresh cannot be combined');
-  const maxRadius = integer(values['max-radius'], 'max-radius', 500, MAX_RADIUS);
+  const maxRadius = Number(values['max-radius']);
+  if (!/^\d+$/.test(values['max-radius']) || maxRadius > MAX_RADIUS || maxRadius % PROBE_SPACING !== 0) {
+    throw new Error(`--max-radius must be a multiple of ${PROBE_SPACING} from 0 to ${MAX_RADIUS}`);
+  }
 
-  const points = parsePoints(readFileSync(input, 'utf8'), input);
-  const table = new Map<string, [string, number]>(
-    existsSync(out) ? readTable(JSON.parse(readFileSync(out, 'utf8'))).map((e) => [e.key, [e.zone, e.radius]]) : [],
-  );
-  const wanted = new Set(points.map((p) => pointKey(p.lat, p.lng) as string));
-  if (values.refresh) for (const key of table.keys()) wanted.add(key);
-  const todo = [...wanted].filter((key) => values.refresh || !table.has(key)).sort();
+  const table = existsSync(out) ? readTableFile(out) : new Map<string, [string, number]>();
+  const added = parsePoints(readFileSync(input, 'utf8'), input)
+    .map((p) => ({ ...p, key: pointKey(p.lat, p.lng) as string }))
+    .filter((p) => !table.has(p.key));
+  const todo = new Set(added.map((p) => p.key));
+  if (values.refresh) for (const key of table.keys()) todo.add(key);
 
   if (values.check) {
-    if (todo.length === 0) {
-      console.log(`up to date: ${table.size} points`);
+    if (todo.size === 0) {
+      console.log(`up to date: ${plural(table.size, 'point')}`);
       return 0;
     }
-    console.log(`${todo.length} point(s) missing from ${out}:`);
-    for (const key of todo.slice(0, 20)) console.log(`  ${key}`);
-    if (todo.length > 20) console.log(`  ...and ${todo.length - 20} more`);
+    console.log(`${plural(todo.size, 'point')} missing from ${out}:`);
+    const missing = [...todo].sort();
+    for (const key of missing.slice(0, 20)) console.log(`  ${key}`);
+    if (missing.length > 20) console.log(`  ...and ${missing.length - 20} more`);
     console.log(`run: pinzone build ${input} -o ${out}`);
     return 1;
+  }
+  if (todo.size === 0) {
+    console.log(`up to date: ${plural(table.size, 'point')}`);
+    return 0;
   }
 
   const find = await loadFind();
@@ -76,66 +102,43 @@ async function build(args: string[]): Promise<number> {
     if (!zone) throw new Error(`no zone found for ${key}`);
     table.set(key, [zone, safeRadius(find, lat, lng, zone, maxRadius)]);
   }
-  writeFileSync(out, formatTable(table));
-  console.log(`wrote ${out}: ${table.size} points (${todo.length} resolved)`);
+  // The table answers for the rounded key. Within a few metres of a border the point itself can be across it.
+  for (const p of added) {
+    const zone = find(p.lat, p.lng);
+    const [keyZone] = table.get(p.key) as [string, number];
+    if (zone !== keyZone) {
+      console.error(`warning: ${p.lat},${p.lng} is in ${zone}, but its key ${p.key} is in ${keyZone}; lookups there answer ${keyZone}`);
+    }
+  }
+  writeAtomically(out, formatTable(table));
+  console.log(`wrote ${out}: ${plural(table.size, 'point')} (${todo.size} resolved)`);
   return 0;
 }
 
 async function check(args: string[]): Promise<number> {
-  const { values, positionals } = parseArgs({
-    args,
-    allowPositionals: true,
-    options: { samples: { type: 'string' }, seed: { type: 'string' } },
-  });
+  const { positionals } = parseArgs({ args, allowPositionals: true, options: {} });
   if (positionals.length !== 1) throw new Error(USAGE);
-  const samples = integer(values.samples, 'samples', 8, 1000);
-  let state = integer(values.seed, 'seed', 1, 2 ** 32 - 1);
-  const random = () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 2 ** 32;
-
-  const table: unknown = JSON.parse(readFileSync(positionals[0], 'utf8'));
-  const entries = readTable(table);
-  const lookup = createLookup(table);
+  const table = readTableFile(positionals[0]);
   const find = await loadFind();
   const failures: string[] = [];
-  let rasterAnswered = 0;
-  let rasterDisagreed = 0;
 
-  for (const zone of new Set(entries.map((e) => e.zone))) {
+  for (const zone of new Set([...table.values()].map(([z]) => z))) {
     try {
       new Intl.DateTimeFormat('en', { timeZone: zone });
     } catch {
-      failures.push(`${zone}: this runtime's Intl does not accept it`);
+      failures.push(`${zone}: not a zone this runtime's Intl accepts`);
     }
   }
-
-  for (const e of entries) {
-    // Every table answer must match the polygons: the entry itself, and points inside its radius.
-    const inside: [number, number][] = [[e.lat, e.lng]];
-    for (let i = 0; i < samples && e.radius > 0; i++) {
-      inside.push(destination(e.lat, e.lng, Math.sqrt(random()) * e.radius, random() * 360));
-    }
-    for (const [lat, lng] of inside) {
-      const truth = find(lat, lng);
-      const { zone } = lookup(lat, lng);
-      if (zone !== truth && !truth?.startsWith('Etc/')) {
-        failures.push(`${pointKey(lat, lng)} (entry ${e.key}): table says ${zone}, polygons say ${truth}`);
-      }
-    }
-    // The raster is approximate by design: report how it does nearby, never fail on it.
-    for (let i = 0; i < samples; i++) {
-      const [lat, lng] = destination(e.lat, e.lng, 1000 + random() * 4000, random() * 360);
-      const got = lookup(lat, lng);
-      const truth = find(lat, lng);
-      if (got.source !== 'raster' || !truth || truth.startsWith('Etc/')) continue;
-      rasterAnswered++;
-      if (got.zone !== truth) rasterDisagreed++;
-    }
+  // The same probe build uses, against the polygons installed now: catches boundary changes and hand edits.
+  for (const [key, [zone, radius]] of table) {
+    const [lat, lng] = key.split(',').map(Number);
+    const truth = find(lat, lng);
+    if (truth !== zone) failures.push(`${key}: table says ${zone}, polygons say ${truth}`);
+    else if (safeRadius(find, lat, lng, zone, radius) < radius) failures.push(`${key}: radius ${radius}m reaches another zone`);
   }
 
-  console.log(`${entries.length} points, ${samples} samples each`);
-  console.log(`raster: ${rasterDisagreed} of ${rasterAnswered} nearby points outside the table disagreed with the polygons`);
   if (failures.length === 0) {
-    console.log('ok: every table answer matches the polygons');
+    console.log(`ok: ${plural(table.size, 'point')} match the polygons`);
     return 0;
   }
   for (const f of failures.slice(0, 20)) console.log(`FAIL ${f}`);
@@ -145,12 +148,17 @@ async function check(args: string[]): Promise<number> {
 }
 
 async function main([command, ...args]: string[]): Promise<number> {
+  if (command === '--help' || command === '-h') {
+    console.log(USAGE);
+    return 0;
+  }
   try {
     if (command === 'build') return await build(args);
     if (command === 'check') return await check(args);
     throw new Error(USAGE);
   } catch (err) {
-    console.error(`pinzone: ${err instanceof Error ? err.message : String(err)}`);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(message.startsWith('pinzone: ') ? message : `pinzone: ${message}`);
     return 2;
   }
 }

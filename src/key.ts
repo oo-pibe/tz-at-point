@@ -11,5 +11,8 @@ const fixed = (v: number): string => {
 
 /** The table key for a coordinate: rounded to 4 decimals (~11m), or null if it is not a coordinate. */
 export function pointKey(lat: unknown, lng: unknown): string | null {
-  return isLatLng(lat, lng) ? `${fixed(lat)},${fixed(lng as number)}` : null;
+  if (!isLatLng(lat, lng)) return null;
+  const lngKey = fixed(lng as number);
+  // -180 and 180 are one meridian; give it one key.
+  return `${fixed(lat)},${lngKey === '-180.0000' ? '180.0000' : lngKey}`;
 }

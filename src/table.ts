@@ -14,28 +14,34 @@ export interface Entry {
   radius: number;
 }
 
-/** Radii are probed up to this, and the runtime near-search window assumes it. */
+/** The largest radius a table may hold, in metres. */
 export const MAX_RADIUS = 1000;
 
-/** Validate a table and return its entries sorted by latitude. Throws a TypeError naming the first problem. */
-export function readTable(table: unknown): Entry[] {
-  if (typeof table !== 'object' || table === null) throw new TypeError('pinzone: table must be an object');
-  const { v, points } = table as Partial<Table>;
-  if (v !== 1) throw new TypeError(`pinzone: unsupported table version ${JSON.stringify(v)}`);
-  if (typeof points !== 'object' || points === null || Array.isArray(points)) throw new TypeError('pinzone: table.points must be an object');
+/** An IANA zone name: `UTC`, `Etc/GMT+12`, `America/Argentina/Buenos_Aires`. Nothing else reaches callers. */
+const ZONE = /^[\w+-]{1,32}(\/[\w+-]{1,32}){0,2}$/;
 
-  const entries: Entry[] = [];
-  for (const [key, value] of Object.entries(points)) {
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && [Object.prototype, null].includes(Object.getPrototypeOf(value));
+
+/** Validate a table and return its entries. Throws a TypeError naming the first problem. */
+export function readTable(table: unknown): Entry[] {
+  if (!isPlainObject(table)) throw new TypeError('pinzone: table must be a plain object');
+  if (table.v !== 1) throw new TypeError(`pinzone: unsupported table version ${JSON.stringify(table.v)}`);
+  if (!isPlainObject(table.points)) throw new TypeError('pinzone: table.points must be a plain object');
+
+  return Object.entries(table.points).map(([key, value]) => {
+    // JSON.stringify escapes control characters, so a hostile key cannot forge lines in a log.
+    const entry = `pinzone: table entry ${JSON.stringify(key)}`;
     const [lat, lng] = key.split(',').map(Number);
-    if (pointKey(lat, lng) !== key) throw new TypeError(`pinzone: "${key}" is not a canonical point key`);
-    if (!Array.isArray(value) || typeof value[0] !== 'string' || value[0] === '') throw new TypeError(`pinzone: "${key}" must map to [zone, radius]`);
-    const radius = value[1];
+    if (pointKey(lat, lng) !== key) throw new TypeError(`${entry} is not a canonical point key`);
+    if (!Array.isArray(value) || value.length !== 2) throw new TypeError(`${entry} must map to [zone, radius]`);
+    const [zone, radius] = value;
+    if (typeof zone !== 'string' || !ZONE.test(zone)) throw new TypeError(`${entry} has an invalid zone name`);
     if (!Number.isInteger(radius) || radius < 0 || radius > MAX_RADIUS) {
-      throw new TypeError(`pinzone: "${key}" has radius ${JSON.stringify(radius)}; expected an integer 0..${MAX_RADIUS}`);
+      throw new TypeError(`${entry} has radius ${JSON.stringify(radius)}; expected an integer from 0 to ${MAX_RADIUS}`);
     }
-    entries.push({ key, lat, lng, zone: value[0], radius });
-  }
-  return entries.sort((a, b) => a.lat - b.lat);
+    return { key, lat, lng, zone, radius };
+  });
 }
 
 /** Serialise a table with sorted keys, one entry per line, so diffs stay readable. */
