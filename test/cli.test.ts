@@ -94,6 +94,16 @@ test('check passes a fresh table, fails a wrong zone or an oversized radius, and
   assert.equal(run('check', w.out).status, 0);
 });
 
+test('check names the right fix for each kind of failure', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  writeFileSync(w.out, JSON.stringify({ v: 1, points: { '51.5561,-0.2794': ['Mars/Olympus_Mons', 0] } }));
+  const r = run('check', w.out);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /FAIL Mars\/Olympus_Mons: not a zone this runtime's Intl accepts/);
+  assert.match(r.stdout, /fix: update Node/);
+  assert.match(r.stdout, /fix: rebuild the table with --refresh/); // the zone also disagrees with the polygons
+});
+
 test('a file that is not JSON is named, never echoed', () => {
   const w = workspace('AWS_SECRET_ACCESS_KEY=abc123');
   writeFileSync(join(w.dir, 'ok.json'), '[[1,2]]');

@@ -189,27 +189,29 @@ async function check(args: string[]): Promise<number> {
   const [file] = positionals;
   const entries = readTable(readJson(file), file);
   const find = await loadFind();
-  const failures: string[] = [];
 
+  const unknownZones: string[] = [];
   for (const zone of new Set(entries.map((e) => e.zone))) {
     try {
       new Intl.DateTimeFormat('en', { timeZone: zone });
     } catch {
-      failures.push(`FAIL ${zone}: not a zone this runtime's Intl accepts`);
+      unknownZones.push(`FAIL ${zone}: not a zone this runtime's Intl accepts`);
     }
   }
+  const stale: string[] = [];
   for (const { key, lat, lng, zone, radius } of entries) {
     const [truth, safe] = resolve(find, lat, lng, radius);
-    if (truth !== zone) failures.push(`FAIL ${key}: table says ${zone}, polygons say ${truth}`);
-    else if (safe < radius) failures.push(`FAIL ${key}: radius ${radius}m reaches another zone`);
+    if (truth !== zone) stale.push(`FAIL ${key}: table says ${zone}, polygons say ${truth}`);
+    else if (safe < radius) stale.push(`FAIL ${key}: radius ${radius}m reaches another zone`);
   }
 
-  if (failures.length === 0) {
+  if (unknownZones.length === 0 && stale.length === 0) {
     console.log(`ok: ${plural(entries.length, 'point')} match the polygons`);
     return 0;
   }
-  printCapped(failures);
-  console.log('fix: rebuild the table with --refresh');
+  printCapped([...unknownZones, ...stale]);
+  if (unknownZones.length) console.log("fix: update Node; its timezone data doesn't know these zones");
+  if (stale.length) console.log('fix: rebuild the table with --refresh');
   return 1;
 }
 

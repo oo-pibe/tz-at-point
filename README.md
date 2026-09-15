@@ -66,6 +66,28 @@ Node 22 or later. The published types work with TypeScript 5.0 or later.
 
 Importing the table this way puts it inside your bundle, so nothing is read from disk when the function runs. The test suite checks this by running a bundled lookup under Node's permission model, allowed to read only the bundle file itself.
 
+## Use with AI coding agents
+
+pinzone ships an agent skill, [skills/pinzone/SKILL.md](skills/pinzone/SKILL.md), that tells a coding agent how to build the table, wire up the lookup, set up CI and read the CLI's output. It follows the open Agent Skills format, so one folder works across tools.
+
+| Tool | Install | Checked |
+|---|---|---|
+| Claude Code | `/plugin marketplace add oo-pibe/pinzone`, then `/plugin install pinzone@pinzone` | Installed and listed with `claude plugin details` |
+| Codex | `codex plugin marketplace add oo-pibe/pinzone`, then `codex plugin add pinzone@pinzone` | Installed; skill appears in the model's prompt (`codex debug prompt-input`) |
+| Kimi Code | `/plugins install https://github.com/oo-pibe/pinzone`, then `/reload` | Manifest follows Kimi's documented format; not run end to end |
+| Claude.ai | Zip the `skills/pinzone` folder and upload it in Claude.ai's skills settings | Same format as Claude Code; not uploaded |
+| Any of the above | `npx skills add oo-pibe/pinzone` | Community installer; not run |
+| By hand | Copy `skills/pinzone` into `.agents/skills/` (Codex, Kimi Code) or `.claude/skills/` (Claude Code) | Codex finds it in `.agents/skills/` |
+
+The skill is also inside the npm package, at `node_modules/pinzone/skills/pinzone/`. For agents without skill support that read `AGENTS.md` (Cursor, Copilot and others), add this to your project's `AGENTS.md`:
+
+```md
+## Timezones
+This project resolves timezones with pinzone. Before changing zones.json or any timezone lookup, read node_modules/pinzone/skills/pinzone/SKILL.md.
+```
+
+[llms.txt](llms.txt) indexes the docs for tools that read that format.
+
 ## The table
 
 ```json
@@ -129,6 +151,38 @@ pinzone check <zones.json>
 - `check` repeats the build's probes for every entry against the geo-tz you have installed, and exits 1 if a zone has changed or a radius now reaches another zone. It also flags zones your JavaScript runtime doesn't recognize. The fix for a failure is `build --refresh`. Its cost grows with the square of each radius, so give it a timeout if you run it on a table you didn't build.
 
 Exit codes: 0 for success, 1 when a check finds a problem, 2 for bad arguments or input.
+
+## Troubleshooting
+
+### A lookup returns `{ zone: null, source: null }`
+
+The input isn't a pair of finite numbers in range (strings like `'51.5'` don't count), or you passed `fallback: null` and the point isn't in the table.
+
+### A known point comes back with `source: 'raster'`
+
+The committed table is missing it. Run `npx pinzone build <points> -o zones.json` and commit. `build --check` in CI stops this from happening again.
+
+### `build` warns that a key is within 10m of another zone
+
+That point sits on a border, so its entry has radius 0. Lookups that round to it all get one zone. See [the table](#the-table).
+
+### `check` fails with `table says A, polygons say B`
+
+The table was edited by hand, or geo-tz changed. Run `build --refresh`, then `check`, and review the diff.
+
+### Zone names changed after moving from geo-tz
+
+geo-tz's default dataset merges zones that have kept the same clocks since 1970; pinzone uses the finer `geo-tz/all`. Baarle-Nassau becomes `Europe/Amsterdam` instead of `Europe/Brussels`, with the same local times.
+
+### TypeScript rejects `import table from './zones.json'`
+
+With `module: nodenext`, add `with { type: 'json' }` (TypeScript 5.3 or later) and `"resolveJsonModule": true`. Bundler setups accept the plain import.
+
+### The function still fails with ENOENT after switching to pinzone
+
+Something else reads a file at runtime, often a data file loaded with `readFileSync`. Import it as JSON as well.
+
+More in the [CLI reference](skills/pinzone/references/cli.md) and [setup guide](skills/pinzone/references/setup.md).
 
 ## Notes
 

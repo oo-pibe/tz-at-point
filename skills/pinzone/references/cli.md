@@ -10,7 +10,7 @@ usage:
 
 ## `pinzone build <points> -o <zones.json>`
 
-Adds every point missing from the table and never removes an entry. For each new key it resolves the zone with `geo-tz/all` and probes the safe radius.
+Adds every point missing from the table and never removes an entry. It never re-validates entries already in the table; `check` does that. For each new key it resolves the zone with `geo-tz/all` (not the default geo-tz export, whose merged dataset names some zones differently) and probes the safe radius.
 
 **Points file** (chosen by extension, case-insensitive):
 
@@ -49,8 +49,9 @@ Re-runs build's probes for every entry against the installed geo-tz, and checks 
 - `ok: 5 points match the polygons`: exit 0.
 - `FAIL 51.4926,7.4519: table says Europe/Paris, polygons say Europe/Berlin`: the entry's zone is wrong for the installed geo-tz: the table was edited, merged badly, or boundaries changed. Exit 1.
 - `FAIL 51.4394,4.9275: radius 500m reaches another zone`: a probe inside the stored radius found another zone. Exit 1.
-- `FAIL America/Ciudad_Juarez: not a zone this runtime's Intl accepts`: the Node/ICU running `check` doesn't know that zone; update Node. Exit 1.
-- `fix: rebuild the table with --refresh`: printed after failures. Run `pinzone build <points> -o <zones.json> --refresh`, then `check` again, and review `git diff` before committing.
+- `FAIL America/Ciudad_Juarez: not a zone this runtime's Intl accepts`: the Node/ICU running `check` doesn't know that zone. Exit 1.
+- `fix: update Node; its timezone data doesn't know these zones`: printed when any zone failed the `Intl` check. Upgrade Node; rebuilding won't change the zone name.
+- `fix: rebuild the table with --refresh`: printed when any entry's zone or radius failed. Run `pinzone build <points> -o <zones.json> --refresh` (`check` only knows the table path, so supply the points file), then `check` again, and review `git diff` before committing.
 
 ## Errors (exit 2)
 

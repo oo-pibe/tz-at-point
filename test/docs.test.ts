@@ -44,7 +44,7 @@ const MESSAGES = [
   'up to date:', 'missing from', 'does not exist yet', 'run: pinzone build', 'wrote ', 'resolved', 'changed',
   'is within 10m of another zone', 'lookups that round to it answer', 'but its key', 'lookups there answer',
   'table says', 'polygons say', 'reaches another zone', "not a zone this runtime's Intl accepts", 'ok:',
-  'match the polygons', 'fix: rebuild the table with --refresh', 'this command needs geo-tz 8.1 or later',
+  'match the polygons', 'fix: rebuild the table with --refresh', 'fix: update Node', 'this command needs geo-tz 8.1 or later',
   'not valid JSON', 'points must be a .json or .csv file', '--check and --refresh cannot be combined',
   '--max-radius must be a multiple of', 'no zone found for', 'JSON points must be an array',
   'expected [lat, lng] or { lat, lng }', 'CSV header must have lat and lng columns', 'unterminated quote',

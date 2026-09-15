@@ -35,7 +35,8 @@ The table must be imported, not read with `fs`, so the bundler embeds it.
 
 - Add `"resolveJsonModule": true` to `tsconfig.json`.
 - Node prints no warning for JSON imports from 22.12 on.
-- Import other data the function needs (venue lists) the same way. A `readFileSync` of a data file in a serverless handler fails for the same reason geo-tz does.
+- Import other data the function needs (venue lists) the same way. A `readFileSync` of a data file in a serverless handler fails for the same reason geo-tz does. If that data is a CSV, keep it as JSON instead and pass the JSON to `pinzone build`, or generate the JSON from the CSV with a script and commit both.
+- If a bundler rejects the `with { type: 'json' }` syntax, use the plain `import table from './zones.json'` form.
 
 ```js
 import { createLookup } from 'pinzone';
@@ -57,7 +58,7 @@ const format = (zone, utcIso) => new Intl.DateTimeFormat('en-GB', {
 
 ## A test worth adding
 
-A point from the points file answering `raster` means the committed table is stale:
+A point from the points file answering `raster` means the committed table is stale. Tests run in Node, not in the function, so they may read files; this one imports the JSON the handler uses. With a CSV points file and no JSON list, `build --check` in CI already covers it.
 
 ```js
 import { test } from 'node:test';
@@ -83,7 +84,9 @@ test('every venue resolves from the committed table', () => {
 
 The first step is fast and doesn't load geo-tz. The second re-probes every entry; on large tables, run it on dependency-update pull requests or on a schedule instead of every push.
 
-## Upgrading geo-tz, or when `check` fails
+## Upgrading geo-tz, pinzone or Node, or when `check` fails
+
+Treat any change to the installed geo-tz version as a boundary-data change, including one from `npm update` or a Dependabot pull request. A Node upgrade can change which zone names `Intl` accepts.
 
 ```sh
 npm install --save-dev geo-tz@latest
