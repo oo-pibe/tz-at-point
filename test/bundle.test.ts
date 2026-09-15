@@ -24,7 +24,7 @@ async function runBundled(body: string) {
 
 test('a bundled lookup answers with no filesystem access beyond its own file', async () => {
   const r = await runBundled(`
-    const lookup = createLookup(table as any);
+    const lookup = createLookup(table);
     console.log(JSON.stringify([lookup(51.5561, -0.2794), lookup(51.557, -0.2794), lookup(36.149, -5.352)]));
   `);
   assert.equal(r.status, 0, r.stderr);

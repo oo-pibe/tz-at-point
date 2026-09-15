@@ -67,7 +67,7 @@ test('each call returns a fresh object', () => {
 });
 
 test('a malformed table throws at creation, not at lookup', () => {
-  assert.throws(() => createLookup({ v: 1, points: { nope: ['Europe/London', 0] } } as unknown as Table), TypeError);
+  assert.throws(() => createLookup({ v: 1, points: { nope: ['Europe/London', 0] } }), TypeError);
 });
 
 test('near search works across the antimeridian', () => {
@@ -75,4 +75,10 @@ test('near search works across the antimeridian', () => {
   const [lat, lng] = destination(-17, 180, 200, 90);
   assert.ok(lng < 0);
   assert.deepEqual(lookup(lat, lng), { zone: 'Pacific/Fiji', source: 'table-near' });
+});
+
+test('accepts a table typed the way a JSON import is typed, and validates it at runtime instead', () => {
+  // `import table from './zones.json'` infers v: number and (string | number)[] values, not Table.
+  const inferred = { v: 1, points: { '51.5561,-0.2794': ['Europe/London', 500] } };
+  assert.equal(createLookup(inferred)(51.5561, -0.2794).zone, 'Europe/London');
 });

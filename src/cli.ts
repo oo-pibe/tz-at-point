@@ -8,7 +8,6 @@ import { parsePoints } from './points.ts';
 import { safeRadius } from './radius.ts';
 import type { Find } from './radius.ts';
 import { formatTable, MAX_RADIUS, readTable } from './table.ts';
-import type { Table } from './table.ts';
 
 const USAGE = `usage:
   pinzone build <points.json|points.csv> -o <zones.json> [--check | --refresh] [--max-radius 500]
@@ -93,7 +92,7 @@ async function check(args: string[]): Promise<number> {
   let state = integer(values.seed, 'seed', 1, 2 ** 32 - 1);
   const random = () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 2 ** 32;
 
-  const table = JSON.parse(readFileSync(positionals[0], 'utf8')) as Table;
+  const table: unknown = JSON.parse(readFileSync(positionals[0], 'utf8'));
   const entries = readTable(table);
   const lookup = createLookup(table);
   const find = await loadFind();

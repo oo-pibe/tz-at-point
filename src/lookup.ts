@@ -2,7 +2,7 @@ import tzlookup from '@photostructure/tz-lookup';
 import { metres } from './geo.ts';
 import { pointKey } from './key.ts';
 import { MAX_RADIUS, readTable } from './table.ts';
-import type { Entry, Table } from './table.ts';
+import type { Entry } from './table.ts';
 
 export type Source = 'table' | 'table-near' | 'raster';
 export type Result = { zone: string; source: Source } | { zone: null; source: null };
@@ -17,10 +17,11 @@ export interface Options {
 const LAT_WINDOW = MAX_RADIUS / 110_000;
 
 /**
- * Build a lookup from a committed table. Throws a TypeError if the table is malformed; the returned
- * function never throws and never touches the filesystem.
+ * Build a lookup from a committed table. The table is validated here rather than typed as `Table`,
+ * because a JSON import is typed loosely (`v: number`). Throws a TypeError if it is malformed; the
+ * returned function never throws and never touches the filesystem.
  */
-export function createLookup(table: Table, { fallback = tzlookup }: Options = {}): Lookup {
+export function createLookup(table: unknown, { fallback = tzlookup }: Options = {}): Lookup {
   const entries = readTable(table);
   const exact = new Map(entries.map((e) => [e.key, e.zone]));
   const near = entries.filter((e) => e.radius > 0);
