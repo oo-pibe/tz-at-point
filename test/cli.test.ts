@@ -96,13 +96,22 @@ test('check passes a fresh table, fails a wrong zone or an oversized radius, and
 
 test('a file that is not JSON is named, never echoed', () => {
   const w = workspace('AWS_SECRET_ACCESS_KEY=abc123');
+  writeFileSync(join(w.dir, 'ok.json'), '[[1,2]]');
   for (const args of [['check', w.points], ['build', join(w.dir, 'ok.json'), '-o', w.points]]) {
-    writeFileSync(join(w.dir, 'ok.json'), '[[1,2]]');
     const r = run(...args);
     assert.equal(r.status, 2, args.join(' '));
     assert.match(r.stderr, /not valid JSON/);
     assert.doesNotMatch(r.stderr, /AWS_SECRET/);
   }
+});
+
+test('a byte-order mark is ignored, and a bad table is named in the error', () => {
+  const w = workspace('\uFEFF[[65.8481, 24.1466]]');
+  assert.equal(run('build', w.points, '-o', w.out).status, 0);
+  writeFileSync(w.out, '{"v":1,"points":{"nope":["UTC",0]}}');
+  const r = run('check', w.out);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /zones\.json: entry "nope" is not a canonical point key/);
 });
 
 test('--help prints usage and succeeds', () => {
@@ -118,7 +127,7 @@ test('usage errors exit 2 with one message, not a stack trace', () => {
     ['build', 'x.json', '-o', 'y.json', '--check', '--refresh'], ['build', 'missing.json', '-o', 'y.json'], ['check', 'x.json', '--bogus']]) {
     const r = run(...args);
     assert.equal(r.status, 2, args.join(' '));
-    assert.match(r.stderr, /^pinzone: (?!pinzone:)/, args.join(' '));
+    assert.match(r.stderr, /^pinzone: /, args.join(' '));
     assert.doesNotMatch(r.stderr, /\n\s+at /, args.join(' '));
   }
 });

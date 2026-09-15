@@ -1,8 +1,7 @@
 import tzlookup from '@photostructure/tz-lookup';
-import { metres } from './geo.ts';
-import { pointKey } from './key.ts';
-import { readTable } from './table.ts';
-import type { Entry } from './table.ts';
+import { metres, mod, RAD } from './geo.ts';
+import { keyOf, latLng } from './key.ts';
+import { readTable, type Entry } from './table.ts';
 
 export type Source = 'table' | 'table-near' | 'raster';
 export type Result = { zone: string; source: Source } | { zone: null; source: null };
@@ -14,24 +13,27 @@ export interface Options {
 }
 
 /**
- * Near search reads one grid cell. Every entry is filed under each 0.01° cell its radius reaches,
- * so the cost of a lookup depends on how many entries overlap that spot, not on the table's size.
+ * Near search reads one grid cell. Every entry is filed under each 0.01° cell its radius reaches, so a
+ * lookup's cost depends on how many entries overlap that spot, not on the size of the table.
  */
 const CELL = 0.01;
 const COLUMNS = 360 / CELL;
-/** Metres per degree of latitude, rounded down so an entry's cell span errs wide. */
+/** Rows beyond ±89°, where a radius spans too many columns to file, are each a single cell. */
+const POLAR_ROW = 8900;
+/** Metres per degree of latitude, rounded down so an entry's span errs wide. */
 const METRES_PER_DEGREE = 110_000;
 
-const cellId = (row: number, column: number): number => row * COLUMNS + (((column % COLUMNS) + COLUMNS) % COLUMNS);
+const cellId = (row: number, column: number) => row * COLUMNS + (Math.abs(row) >= POLAR_ROW ? 0 : mod(column, COLUMNS));
 
-/** Every cell an entry's radius reaches. Near a pole that is every column. */
-function* cellsReached({ lat, lng, radius }: Entry): Generator<number> {
+/** Every cell an entry's radius reaches. */
+function* cellsReached({ lat, lng, radius }: Entry) {
   const dLat = radius / METRES_PER_DEGREE;
-  const cos = Math.cos((Math.min(90, Math.abs(lat) + dLat) * Math.PI) / 180);
-  const dLng = dLat / Math.max(cos, 1e-9);
-  const [west, east] = dLng >= 180 ? [0, COLUMNS - 1] : [Math.floor((lng - dLng) / CELL), Math.floor((lng + dLng) / CELL)];
+  const dLng = dLat / Math.max(Math.cos((Math.abs(lat) + dLat) * RAD), 1e-9);
+  const west = Math.floor((lng - dLng) / CELL);
+  const east = Math.min(Math.floor((lng + dLng) / CELL), west + COLUMNS - 1);
   for (let row = Math.floor((lat - dLat) / CELL); row <= Math.floor((lat + dLat) / CELL); row++) {
-    for (let column = west; column <= east; column++) yield cellId(row, column);
+    if (Math.abs(row) >= POLAR_ROW) yield cellId(row, 0);
+    else for (let column = west; column <= east; column++) yield cellId(row, column);
   }
 }
 
@@ -54,11 +56,11 @@ export function createLookup(table: unknown, { fallback = tzlookup }: Options = 
   }
 
   return (lat, lng) => {
-    const key = pointKey(lat, lng);
-    if (key === null) return { zone: null, source: null };
-    const hit = exact.get(key);
+    const point = latLng(lat, lng);
+    if (!point) return { zone: null, source: null };
+    const [y, x] = point;
+    const hit = exact.get(keyOf(y, x));
     if (hit !== undefined) return { zone: hit, source: 'table' };
-    const [y, x] = [lat as number, lng as number];
     const near = nearest(cells.get(cellId(Math.floor(y / CELL), Math.floor(x / CELL))), y, x);
     if (near !== null) return { zone: near, source: 'table-near' };
     if (fallback) {

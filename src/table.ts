@@ -1,6 +1,6 @@
-import { pointKey } from './key.ts';
+import { keyOf, latLng, parseKey } from './key.ts';
 
-/** The committed table: `pointKey` → [IANA zone, safe radius in metres]. */
+/** The committed table: point key → [IANA zone, safe radius in metres]. */
 export interface Table {
   v: 1;
   points: Record<string, [zone: string, radius: number]>;
@@ -14,39 +14,45 @@ export interface Entry {
   radius: number;
 }
 
-/** The largest radius a table may hold, in metres. */
+/** Radii are multiples of the probe spacing, up to a kilometre. */
+export const RADIUS_STEP = 10;
 export const MAX_RADIUS = 1000;
+export const isRadius = (n: unknown): n is number =>
+  Number.isInteger(n) && (n as number) >= 0 && (n as number) <= MAX_RADIUS && (n as number) % RADIUS_STEP === 0;
 
 /** An IANA zone name: `UTC`, `Etc/GMT+12`, `America/Argentina/Buenos_Aires`. Nothing else reaches callers. */
 const ZONE = /^[\w+-]{1,32}(\/[\w+-]{1,32}){0,2}$/;
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && [Object.prototype, null].includes(Object.getPrototypeOf(value));
+  value != null && [Object.prototype, null].includes(Object.getPrototypeOf(value));
 
-/** Validate a table and return its entries. Throws a TypeError naming the first problem. */
-export function readTable(table: unknown): Entry[] {
-  if (!isPlainObject(table)) throw new TypeError('pinzone: table must be a plain object');
-  if (table.v !== 1) throw new TypeError(`pinzone: unsupported table version ${JSON.stringify(table.v)}`);
-  if (!isPlainObject(table.points)) throw new TypeError('pinzone: table.points must be a plain object');
+/** Validate a table and return its entries. Throws a TypeError, prefixed with `name`, naming the first problem. */
+export function readTable(table: unknown, name = 'pinzone table'): Entry[] {
+  if (!isPlainObject(table)) throw new TypeError(`${name}: must be a plain object`);
+  if (table.v !== 1) throw new TypeError(`${name}: unsupported version ${JSON.stringify(table.v)}`);
+  if (!isPlainObject(table.points)) throw new TypeError(`${name}: points must be a plain object`);
 
-  return Object.entries(table.points).map(([key, value]) => {
+  const zones = new Set<unknown>(); // valid names already seen: a table repeats a few hundred at most
+  const entries: Entry[] = [];
+  for (const [key, value] of Object.entries(table.points)) {
     // JSON.stringify escapes control characters, so a hostile key cannot forge lines in a log.
-    const entry = `pinzone: table entry ${JSON.stringify(key)}`;
-    const [lat, lng] = key.split(',').map(Number);
-    if (pointKey(lat, lng) !== key) throw new TypeError(`${entry} is not a canonical point key`);
-    if (!Array.isArray(value) || value.length !== 2) throw new TypeError(`${entry} must map to [zone, radius]`);
+    const fail = (problem: string) => new TypeError(`${name}: entry ${JSON.stringify(key)} ${problem}`);
+    const [lat, lng] = parseKey(key);
+    if (!latLng(lat, lng) || keyOf(lat, lng) !== key) throw fail('is not a canonical point key');
+    if (!Array.isArray(value) || value.length !== 2) throw fail('must map to [zone, radius]');
     const [zone, radius] = value;
-    if (typeof zone !== 'string' || !ZONE.test(zone)) throw new TypeError(`${entry} has an invalid zone name`);
-    if (!Number.isInteger(radius) || radius < 0 || radius > MAX_RADIUS) {
-      throw new TypeError(`${entry} has radius ${JSON.stringify(radius)}; expected an integer from 0 to ${MAX_RADIUS}`);
+    if (!zones.has(zone)) {
+      if (typeof zone !== 'string' || !ZONE.test(zone)) throw fail('has an invalid zone name');
+      zones.add(zone);
     }
-    return { key, lat, lng, zone, radius };
-  });
+    if (!isRadius(radius)) throw fail(`has radius ${JSON.stringify(radius)}; expected a multiple of ${RADIUS_STEP} from 0 to ${MAX_RADIUS}`);
+    entries.push({ key, lat, lng, zone, radius });
+  }
+  return entries;
 }
 
 /** Serialise a table with sorted keys, one entry per line, so diffs stay readable. */
 export function formatTable(points: Map<string, [string, number]>): string {
-  const lines = [...points].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([key, value]) => `    ${JSON.stringify(key)}: ${JSON.stringify(value)}`);
+  const lines = [...points.keys()].sort().map((key) => `    ${JSON.stringify(key)}: ${JSON.stringify(points.get(key))}`);
   return `{\n  "v": 1,\n  "points": {\n${lines.join(',\n')}${lines.length ? '\n' : ''}  }\n}\n`;
 }

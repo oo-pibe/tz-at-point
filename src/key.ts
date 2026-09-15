@@ -1,18 +1,25 @@
-/** True when `lat`/`lng` are finite numbers on the globe. */
-export function isLatLng(lat: unknown, lng: unknown): lat is number {
-  return typeof lat === 'number' && typeof lng === 'number' && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+/** `[lat, lng]` if both are finite numbers on the globe, otherwise null. */
+export function latLng(lat: unknown, lng: unknown): [number, number] | null {
+  return typeof lat === 'number' && typeof lng === 'number' && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? [lat, lng] : null;
 }
 
-const fixed = (v: number): string => {
+const fixed = (v: number) => {
   const s = v.toFixed(4);
   // Rounding, not the input, produces negative zero: -0.000004 must key the same as 0.000004.
   return s === '-0.0000' ? '0.0000' : s;
 };
 
-/** The table key for a coordinate: rounded to 4 decimals (~11m), or null if it is not a coordinate. */
-export function pointKey(lat: unknown, lng: unknown): string | null {
-  if (!isLatLng(lat, lng)) return null;
-  const lngKey = fixed(lng as number);
-  // -180 and 180 are one meridian; give it one key.
+/** The table key for a valid coordinate: rounded to 4 decimals (~11m), with -180 and 180 as one meridian. */
+export function keyOf(lat: number, lng: number): string {
+  const lngKey = fixed(lng);
   return `${fixed(lat)},${lngKey === '-180.0000' ? '180.0000' : lngKey}`;
+}
+
+/** The coordinate a key was made from (NaN parts if it is not a key). */
+export const parseKey = (key: string) => key.split(',').map(Number) as [number, number];
+
+/** The table key for a coordinate, or null if it is not a coordinate. */
+export function pointKey(lat: unknown, lng: unknown): string | null {
+  const point = latLng(lat, lng);
+  return point && keyOf(...point);
 }

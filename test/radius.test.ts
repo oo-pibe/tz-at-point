@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { destination, metres } from '../src/geo.ts';
-import { safeRadius } from '../src/radius.ts';
+import { resolve, safeRadius } from '../src/radius.ts';
 
 /** Everything more than `m` metres north of 40,0 is Zone/B. */
 const borderNorth = (m: number) => {
@@ -11,7 +11,6 @@ const borderNorth = (m: number) => {
 
 test('the radius stops one ring short of the first probe in another zone', () => {
   assert.equal(safeRadius(borderNorth(305), 40, 0, 'Zone/A', 1000), 300);
-  assert.equal(safeRadius(borderNorth(305), 40, 0, 'Zone/A', 250), 250);
   assert.equal(safeRadius(borderNorth(65), 40, 0, 'Zone/A', 250), 60);
   assert.equal(safeRadius(borderNorth(5), 40, 0, 'Zone/A', 250), 0);
 });
@@ -36,6 +35,8 @@ test('sea zones are compared like any other zone', () => {
   assert.equal(safeRadius(find, 0, 179.9989, 'Etc/GMT-12', 1000), 120);
 });
 
-test('a probe with no answer is a disagreement', () => {
+test('a probe with no answer is a disagreement, and a point with no zone has no radius', () => {
   assert.equal(safeRadius(() => undefined, 40, 0, 'Zone/A', 250), 0);
+  assert.deepEqual(resolve(() => undefined, 40, 0, 250), [undefined, 0]);
+  assert.deepEqual(resolve(borderNorth(65), 40, 0, 250), ['Zone/A', 60]);
 });

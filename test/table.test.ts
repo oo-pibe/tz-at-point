@@ -27,19 +27,20 @@ test('rejects a malformed table with a TypeError that names the problem', () => 
     [{ v: 1, points: { '1.0000,1.0000': ['Europe/London', -1] } }, /radius/],
     [{ v: 1, points: { '1.0000,1.0000': ['Europe/London', 1001] } }, /radius/],
     [{ v: 1, points: { '1.0000,1.0000': ['Europe/London', 2.5] } }, /radius/],
+    [{ v: 1, points: { '1.0000,1.0000': ['Europe/London', 255] } }, /radius/],
+    [JSON.parse('{"v":1,"points":{"__proto__":["Europe/London",0]}}'), /canonical/],
     [{ v: 1, points: { '1.0000,1.0000': 'Europe/London' } }, /\[zone, radius\]/],
   ];
   for (const [table, message] of bad) assert.throws(() => readTable(table), { name: 'TypeError', message }, String(message));
 });
 
+test('a caller can name the table in its errors', () => {
+  assert.throws(() => readTable({ v: 1, points: { nope: ['UTC', 0] } }, 'zones.json'), /^TypeError: zones\.json: entry "nope"/);
+});
+
 test('error messages escape what the table contains, so a table cannot write into CI logs', () => {
   const table = { v: 1, points: { 'x\n::error title=injected::boom': ['Europe/London', 0] } };
   assert.throws(() => readTable(table), (err: Error) => !err.message.includes('\n'));
-});
-
-test('a __proto__ key is just an invalid key, not a prototype', () => {
-  const table = JSON.parse('{"v":1,"points":{"__proto__":["Europe/London",0]}}');
-  assert.throws(() => readTable(table), TypeError);
 });
 
 test('formats one sorted entry per line and round-trips', () => {
