@@ -8,3 +8,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+  # The example is what people copy, so it should not quietly go stale.
+  - package-ecosystem: npm
+    directory: /examples/serverless-function
+    schedule:
+      interval: weekly

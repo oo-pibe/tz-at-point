@@ -41,13 +41,35 @@ jobs:
           mkdir -p "$RUNNER_TEMP/smoke" && cd "$RUNNER_TEMP/smoke"
           npm init -y > /dev/null
           npm install --ignore-scripts "$GITHUB_WORKSPACE"/tz-at-point-*.tgz
-          node --input-type=module -e "
-            import { createLookup } from 'tz-at-point';
-            const table = { v: 1, maxRadius: 250, points: { '51.5561,-0.2794': ['Europe/London', 250] } };
-            const at = createLookup(table);
-            const hit = at(51.5561, -0.2794), raster = at(40.4168, -3.7038);
-            if (hit.zone !== 'Europe/London' || hit.source !== 'table') throw new Error('table lookup: ' + JSON.stringify(hit));
-            if (raster.zone !== 'Europe/Madrid') throw new Error('raster fallback: ' + JSON.stringify(raster));
-            console.log('ok', JSON.stringify(hit), JSON.stringify(raster));
-          "
+          cp "$GITHUB_WORKSPACE/test/smoke.mjs" .
+          node smoke.mjs
+          ./node_modules/.bin/tz-at-point --help > /dev/null
+
+  # engines says Node 20.19 is supported, but the suite cannot run there: it is
+  # TypeScript, and type stripping arrived later. So test the built artifact on
+  # the declared floor instead, or the claim is never checked at all.
+  floor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: npm pack
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20.19.0
+      - name: The built package runs on the oldest Node engines allows
+        run: |
+          mkdir -p "$RUNNER_TEMP/floor" && cd "$RUNNER_TEMP/floor"
+          npm init -y > /dev/null
+          npm install --ignore-scripts "$GITHUB_WORKSPACE"/tz-at-point-*.tgz
+          cp "$GITHUB_WORKSPACE/test/smoke.mjs" .
+          node --version
+          node smoke.mjs
           ./node_modules/.bin/tz-at-point --help > /dev/null
