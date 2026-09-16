@@ -4,6 +4,8 @@
 
 [![ci](https://github.com/oo-pibe/tz-at-point/actions/workflows/ci.yml/badge.svg)](https://github.com/oo-pibe/tz-at-point/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/tz-at-point)](https://www.npmjs.com/package/tz-at-point)
+[![install size](https://badgen.net/packagephobia/install/tz-at-point)](https://packagephobia.com/result?p=tz-at-point)
+[![types: TypeScript](https://img.shields.io/npm/types/tz-at-point)](https://www.typescriptlang.org/)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 Timezone lookup from latitude and longitude, resolved offline at build time. You point the CLI at your own coordinates, it resolves each one against the real timezone boundaries with geo-tz, and commits the answers as a small JSON table. At runtime `createLookup` reads that table, then a nearby entry, then a compact raster, and never touches the filesystem, which is what makes it safe inside a bundled serverless function.
@@ -144,6 +146,8 @@ type Result =
 - The returned function **never throws**, whatever you pass it. A malformed table throws a `TypeError` from `createLookup` instead, when your function starts rather than mid-request.
 - `options.fallback` swaps the raster for your own, or `null` turns it off. Importing from `tz-at-point/core` leaves the raster out of your bundle entirely.
 - `pointKey(lat, lng)` gives the table key for a coordinate.
+
+A complete handler, with its table, CI step and audit: [examples/serverless-function](examples/serverless-function).
 
 Full detail: [API reference](skills/tz-at-point/references/api.md) · [CLI reference](skills/tz-at-point/references/cli.md) · [setup guide](skills/tz-at-point/references/setup.md).
 

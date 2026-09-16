@@ -1,6 +1,6 @@
 {
   "name": "tz-at-point",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Offline timezone lookup for coordinates you know in advance: resolve points to IANA timezones at build time with geo-tz, commit a small table, look them up with no filesystem access.",
   "author": {
     "name": "oo-pibe",

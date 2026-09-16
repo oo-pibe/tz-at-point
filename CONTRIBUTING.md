@@ -11,6 +11,8 @@ npx tsc         # typecheck
 
 [AGENTS.md](AGENTS.md) is the guide to the codebase: what each module does, the invariants that must hold, and how the docs are kept in sync with the code. Claude Code, Codex and Kimi read it automatically.
 
+By taking part you agree to the [code of conduct](CODE_OF_CONDUCT.md).
+
 A few house rules:
 
 - Write the failing test first. Every fix in this repo's history has one.

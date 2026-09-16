@@ -1,0 +1,12 @@
+{
+  "v": 1,
+  "attribution": "Timezone boundaries from OpenStreetMap (https://www.openstreetmap.org/copyright), ODbL 1.0. Zone names from the IANA tz database, public domain.",
+  "geoTz": "8.1.8",
+  "maxRadius": 250,
+  "points": {
+    "-4.2527,-69.9381": ["America/Manaus",240],
+    "51.4926,7.4519": ["Europe/Berlin",250],
+    "51.5561,-0.2794": ["Europe/London",250],
+    "65.8481,24.1466": ["Europe/Helsinki",250]
+  }
+}

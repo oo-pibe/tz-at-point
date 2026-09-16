@@ -26,3 +26,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm pack --dry-run
+      - name: Package layout (exports, types, files)
+        if: matrix.node == 24
+        run: |
+          npx --yes publint@latest
+          npx --yes @arethetypeswrong/cli@latest --pack . --ignore-rules cjs-resolves-to-esm

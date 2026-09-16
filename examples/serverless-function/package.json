@@ -1,0 +1,19 @@
+{
+  "name": "tz-at-point-example",
+  "private": true,
+  "type": "module",
+  "description": "A serverless handler that reports local kickoff times, with no filesystem access.",
+  "scripts": {
+    "zones": "tz-at-point build data/venues.csv -o data/zones.json",
+    "zones:check": "tz-at-point build data/venues.csv -o data/zones.json --check",
+    "zones:audit": "tz-at-point check data/zones.json --raster",
+    "start": "node run.js",
+    "test": "node run.js"
+  },
+  "dependencies": {
+    "tz-at-point": "^1.0.0"
+  },
+  "devDependencies": {
+    "geo-tz": "^8.0.0"
+  }
+}
