@@ -8,6 +8,11 @@ on:
 permissions:
   contents: read
 
+# A release event and a manual dispatch must not race each other to publish.
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -23,7 +28,30 @@ jobs:
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+      # Publishing a version nobody tagged is worse than publishing nothing.
+      - name: The release tag must match package.json
+        if: github.event_name == 'release'
+        run: |
+          tagged="${GITHUB_REF_NAME#v}"
+          declared="$(node -p 'require("./package.json").version')"
+          test "$tagged" = "$declared" \
+            || { echo "tag $GITHUB_REF_NAME does not match package.json $declared"; exit 1; }
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - run: npm test
+      # .npmrc sets ignore-scripts, which also disables this package's own
+      # prepack. Without this step the tarball would ship without dist/.
+      - run: npm run build
+      # The last gate before an immutable version goes out: publint and attw
+      # both fail on a tarball whose entry points do not exist.
+      - run: npx --yes publint@0.3.24
+      - run: npx --yes @arethetypeswrong/cli@0.18.5 --pack . --ignore-rules cjs-resolves-to-esm
+      # npm cannot configure a trusted publisher for a package that does not
+      # exist yet (npm/cli#8544), so the FIRST release needs an NPM_TOKEN
+      # secret. Provenance does not depend on OIDC: it needs only a supported
+      # CI, id-token: write, and a matching public repository field, so v1.0.0
+      # is still signed. Once 1.0.0 is on the registry, add the trusted
+      # publisher on npmjs.com and delete the secret; npm then prefers OIDC.
       - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

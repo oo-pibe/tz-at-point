@@ -25,9 +25,29 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - run: npm test
-      - run: npm pack --dry-run
+      # .npmrc sets ignore-scripts, which also disables this package's own
+      # prepack, so dist/ has to be built explicitly or everything below packs
+      # an empty tarball and still exits 0.
+      - run: npm run build
       - name: Package layout (exports, types, files)
         if: matrix.node == 24
         run: |
-          npx --yes publint@latest
-          npx --yes @arethetypeswrong/cli@latest --pack . --ignore-rules cjs-resolves-to-esm
+          npx --yes publint@0.3.24
+          npx --yes @arethetypeswrong/cli@0.18.5 --pack . --ignore-rules cjs-resolves-to-esm
+      # The suite imports src/. This is the only thing that runs what ships.
+      - name: Smoke-test the tarball a consumer installs
+        run: |
+          npm pack
+          mkdir -p "$RUNNER_TEMP/smoke" && cd "$RUNNER_TEMP/smoke"
+          npm init -y > /dev/null
+          npm install --ignore-scripts "$GITHUB_WORKSPACE"/tz-at-point-*.tgz
+          node --input-type=module -e "
+            import { createLookup } from 'tz-at-point';
+            const table = { v: 1, maxRadius: 250, points: { '51.5561,-0.2794': ['Europe/London', 250] } };
+            const at = createLookup(table);
+            const hit = at(51.5561, -0.2794), raster = at(40.4168, -3.7038);
+            if (hit.zone !== 'Europe/London' || hit.source !== 'table') throw new Error('table lookup: ' + JSON.stringify(hit));
+            if (raster.zone !== 'Europe/Madrid') throw new Error('raster fallback: ' + JSON.stringify(raster));
+            console.log('ok', JSON.stringify(hit), JSON.stringify(raster));
+          "
+          ./node_modules/.bin/tz-at-point --help > /dev/null
