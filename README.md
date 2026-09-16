@@ -20,6 +20,10 @@ zoneAt(65.8481, 24.1466); // { zone: 'Europe/Helsinki', source: 'table' }
 zoneAt(40.4168, -3.7038); // { zone: 'Europe/Madrid',   source: 'raster' }
 ```
 
+**Status:** 1.0.0. The runtime API is stable and the table format is versioned; changes are recorded in the [changelog](CHANGELOG.md).
+
+[Why](#why) · [How it works](#how-it-works) · [Prior art](#prior-art) · [Install](#install) · [Quick start](#quick-start) · [API](#api) · [CLI](#cli) · [AI coding agents](#use-with-ai-coding-agents) · [Timezones](#timezones) · [What it promises](#what-it-promises) · [Keeping the table current](#keeping-the-table-current) · [Troubleshooting](#troubleshooting) · [FAQ](#faq) · [Data sources](#data-sources)
+
 ## Why
 
 There are two good ways to turn a coordinate into a timezone in JavaScript, and each has a catch.

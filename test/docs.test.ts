@@ -39,6 +39,19 @@ test('every relative link in the docs resolves', () => {
   }
 });
 
+/** GitHub's heading anchors: lowercased, punctuation dropped, spaces hyphenated. */
+const slug = (heading: string) => heading.toLowerCase().replace(/[^\w\- ]/g, '').trim().replace(/ /g, '-');
+
+test('every in-page anchor link points at a heading that still exists', () => {
+  for (const file of docs()) {
+    const text = read(file);
+    const headings = new Set([...text.matchAll(/^#{1,6} (.+)$/gm)].map(([, h]) => slug(h)));
+    for (const [, anchor] of text.matchAll(/\]\(#([^)\s]+)\)/g)) {
+      assert.ok(headings.has(anchor), `${file} links to #${anchor}, which is not a heading`);
+    }
+  }
+});
+
 /** Every message a user can see, as fragments. Each must still be in src/ and be explained in references/cli.md. */
 const MESSAGES = [
   'up to date:', 'missing from', 'disagrees', 'by a different UTC offset', 'built with geo-tz', 're-resolved at --max-radius', 'kept changing underneath this build', 'does not exist yet', 'run: npx tz-at-point build', 'wrote ', 'resolved', 'changed',
