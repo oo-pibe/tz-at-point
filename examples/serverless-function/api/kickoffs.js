@@ -31,6 +31,6 @@ export default function handler(_req, res) {
 export const FIXTURES = [
   { home: 'England', away: 'Wales', venue: 'Wembley Stadium', utc: '2026-11-14T19:45:00Z' },
   { home: 'Dortmund', away: 'Leipzig', venue: 'Westfalenstadion', utc: '2026-10-24T16:30:00Z' },
-  { home: 'TP-47', away: 'KuPS', venue: 'Raatti Stadium', utc: '2026-09-20T21:30:00Z' },
+  { home: 'TP-47', away: 'KuPS', venue: 'Pohjan Stadion', utc: '2026-09-20T21:30:00Z' },
   { home: 'Tabatinga', away: 'Nacional', venue: 'Estadio General Sarmiento', utc: '2026-09-27T19:00:00Z' },
 ];

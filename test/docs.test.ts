@@ -55,6 +55,15 @@ test('every link into our own repo points at a file that exists', () => {
   assert.ok(found >= 9, `expected the README's absolute self-links, found ${found}`);
 });
 
+test('the test count the README advertises is the number of tests there are', () => {
+  const declared = /\| Tests \| (\d+),/.exec(read('README.md'));
+  assert.ok(declared, 'README no longer states a test count');
+  const actual = readdirSync(join(root, 'test'))
+    .filter((f) => f.endsWith('.test.ts'))
+    .reduce((n, f) => n + (read(`test/${f}`).match(/^test\(/gm)?.length ?? 0), 0);
+  assert.equal(Number(declared[1]), actual, 'README says a different number of tests than test/ declares');
+});
+
 /** GitHub's heading anchors: lowercased, punctuation dropped, spaces hyphenated. */
 const slug = (heading: string) => heading.toLowerCase().replace(/[^\w\- ]/g, '').trim().replace(/ /g, '-');
 

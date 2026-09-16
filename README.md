@@ -200,7 +200,7 @@ The rest, measured rather than asserted:
 | Startup | 60-270ms and 10-15MB for a 30,000-point table |
 | Build | ~2,200 geo-tz probes per point at the default radius |
 | Runtime dependencies | one, the raster; `tz-at-point/core` keeps it out of your bundle |
-| Tests | 122, including bundled runs with file reads denied and a lookup checked against a brute-force scan |
+| Tests | 125, including bundled runs with file reads denied and a lookup checked against a brute-force scan |
 | Also checked | differential fuzzing against geo-tz over millions of points, and mutation testing of the suite |
 
 ## Keeping the table current
