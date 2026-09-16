@@ -67,9 +67,16 @@ test('the test count the README advertises is the number of tests there are', ()
 /** GitHub's heading anchors: lowercased, punctuation dropped, spaces hyphenated. */
 const slug = (heading: string) => heading.toLowerCase().replace(/[^\w\- ]/g, '').trim().replace(/ /g, '-');
 
+/**
+ * A `## Heading` inside a fenced block is sample text, not a heading, and gets
+ * no anchor. Docs here quote whole markdown files, so this is not hypothetical:
+ * the table of contents once linked to a heading that only existed in a sample.
+ */
+const withoutFences = (markdown: string) => markdown.replace(/^```[\s\S]*?^```/gm, '');
+
 test('every in-page anchor link points at a heading that still exists', () => {
   for (const file of docs()) {
-    const text = read(file);
+    const text = withoutFences(read(file));
     const headings = new Set([...text.matchAll(/^#{1,6} (.+)$/gm)].map(([, h]) => slug(h)));
     for (const [, anchor] of text.matchAll(/\]\(#([^)\s]+)\)/g)) {
       assert.ok(headings.has(anchor), `${file} links to #${anchor}, which is not a heading`);

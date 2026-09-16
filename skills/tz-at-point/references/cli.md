@@ -25,7 +25,7 @@ Adds every point missing from the table and never removes an entry. It never re-
 | `-o, --out <file>` | The table to create or extend. Required. If it is a symlink, the file it points to is updated and keeps its permissions. |
 | `--check` | Change nothing. Exit 0 if every point is in the table, 1 if any is missing or the table doesn't exist. Doesn't need geo-tz. |
 | `--refresh` | Re-resolve every entry, old and new, with the installed geo-tz and the given `--max-radius`, and report how many changed (a radius change counts). Pass the same `--max-radius` you built with, or every wider radius shrinks to the default. Can't be combined with `--check`. |
-| `--max-radius <m>` | Largest safe radius to probe. A multiple of 10 from 0 to 1000; default 250. Cost grows with its square: about 2,000 probes per point at 250, 8,000 at 500. The table records the value, and a later build with a different one re-resolves every entry. |
+| `--max-radius <m>` | Largest safe radius to probe. A multiple of 10 from 0 to 1000; default 250. Cost grows with its square: 2,218 probes per point at 250, 8,357 at 500. The table records the value, and a later build with a different one re-resolves every entry. |
 | `-h, --help` | Print usage. |
 
 Writes are atomic: a temp file is written and synced, then renamed over the table, so an interrupted build leaves the old table in place. Parallel builds of the same table are safe: each merges with what is on disk and verifies its own entries survived. It also runs under Node's permission model, where fsync and fchmod are unavailable (durability and mode preservation are skipped). A hard link to the table is not followed: the rename leaves the other link on the old contents.

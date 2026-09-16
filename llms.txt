@@ -14,4 +14,5 @@ tz-at-point is a TypeScript/JavaScript library and CLI for Node 20.19+ or 22.12+
 
 ## Optional
 
-- [Contributing](https://github.com/oo-pibe/tz-at-point/blob/main/AGENTS.md): architecture, invariants and tests for working on tz-at-point itself
+- [Architecture notes](https://github.com/oo-pibe/tz-at-point/blob/main/AGENTS.md): invariants, layout and tests for working on tz-at-point itself
+- [Contributing](https://github.com/oo-pibe/tz-at-point/blob/main/CONTRIBUTING.md): how to propose a change

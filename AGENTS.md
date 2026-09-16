@@ -15,7 +15,7 @@ tz-at-point answers the IANA timezone at a coordinate from a committed JSON tabl
 | `src/points.ts` | Points from JSON or CSV. Pure: no file access. |
 | `src/text.ts` | Escaping untrusted text for messages. |
 | `src/cli.ts` | `tz-at-point build` and `tz-at-point check`. The only module that touches the filesystem or geo-tz. |
-| `test/` | `node:test` suites per module (text escaping is covered in `table.test.ts`), plus `cli.test.ts` (spawns the CLI), `bundle.test.ts` and `docs.test.ts`. |
+| `test/` | A `node:test` suite per module (`key`, `geo`, `points`, `table`, `lookup`, `radius`; text escaping lives in `table.test.ts`), plus `cli.test.ts` and `cli-contract.test.ts` (spawn the CLI), `invariants`, `validation`, `bundle` and `docs`. `smoke.mjs` is not part of `npm test`: CI runs it against the packed tarball. |
 | `skills/tz-at-point/` | The agent skill shipped to users: `SKILL.md` and `references/`. |
 | `.claude-plugin/`, `kimi.plugin.json` | Plugin manifests for Claude Code, Codex and Kimi Code. They point at `skills/`. |
 

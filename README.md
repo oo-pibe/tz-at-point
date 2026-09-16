@@ -22,40 +22,44 @@ zoneAt(40.4168, -3.7038); // { zone: 'Europe/Madrid',   source: 'raster' }
 
 **Status:** 1.0.0. The runtime API is stable and the table format is versioned; changes are recorded in the [changelog](https://github.com/oo-pibe/tz-at-point/blob/main/CHANGELOG.md).
 
-[Why](#why) · [How it works](#how-it-works) · [Prior art](#prior-art) · [Install](#install) · [Quick start](#quick-start) · [API](#api) · [CLI](#cli) · [AI coding agents](#use-with-ai-coding-agents) · [Timezones](#timezones) · [What it promises](#what-it-promises) · [Keeping the table current](#keeping-the-table-current) · [Troubleshooting](#troubleshooting) · [FAQ](#faq) · [Data sources](#data-sources)
+[Why](#why) · [How it works](#how-it-works) · [Prior art](#prior-art) · [Install](#install) · [Quick start](#quick-start) · [API](#api) · [CLI](#cli) · [AI coding agents](#use-with-ai-coding-agents) · [What it promises](#what-it-promises) · [Keeping the table current](#keeping-the-table-current) · [Troubleshooting](#troubleshooting) · [FAQ](#faq) · [Data sources](#data-sources)
 
 ## Why
 
-There are two good ways to turn a coordinate into a timezone in JavaScript, and each has a catch.
+There are two common ways to turn a coordinate into a timezone in JavaScript, and each has a catch.
 
-**[geo-tz](https://github.com/evansiroky/node-geo-tz) is exact.** It reads the real boundary polygons from about 30MB of data files on disk. A bundler doesn't carry those files, so inside a bundled function every lookup that needs them throws:
+**[geo-tz](https://github.com/evansiroky/node-geo-tz) is exact.** It reads the real boundary polygons from about 30MB of data files on disk. A JavaScript bundler won't pull those into your bundle, so unless you ship the `data/` directory alongside it and point `GEO_TZ_DATA_PATH` at it, every lookup that needs them throws:
 
 ```
 Error: ENOENT: no such file or directory, open
   '/var/task/node_modules/geo-tz/data/timezones-1970.geojson.geo.dat'
 ```
 
-**[@photostructure/tz-lookup](https://github.com/photostructure/tz-lookup) reads no files.** It's 73KB of JavaScript and works anywhere. It's also approximate, and near a border the neighbour often keeps different clocks:
+On Lambda you can do exactly that, and people do: copy the directory into a layer and set the variable, at about 70MB against the 250MB unzipped limit. On an edge runtime you can't, because there is no filesystem to point it at.
+
+**[@photostructure/tz-lookup](https://github.com/photostructure/tz-lookup) reads no files.** It's 73KB of JavaScript, 74KB once bundled, and works anywhere. It's also approximate, and near a border the neighbour often keeps different clocks:
 
 | Place | Coordinate | Raster says | Actually | Off by |
 |---|---|---|---|---|
 | Tornio, Finland | 65.8481, 24.1466 | Europe/Stockholm | Europe/Helsinki | 1 hour |
 | Tabatinga, Brazil | -4.2527, -69.9381 | America/Eirunepe | America/Manaus | 1 hour |
 
-[Its own README](https://github.com/photostructure/tz-lookup) puts the disagreement with geo-tz at ~10% of likely-inhabited points, ~5% even after forgiving zones whose clocks match. Measured a different way, at uniformly random points on land it returns a zone with the wrong UTC offset for about **3% of the world**, 2.7% of North America and 1–2% of Europe.
+[Its own README](https://github.com/photostructure/tz-lookup) puts the disagreement with geo-tz at ~10% of likely-inhabited points, ~5% even after forgiving zones whose clocks match. Measured a different way, at points sampled uniformly by area on land, it returns a zone with the wrong UTC offset for **3.4% of the world**, 3.5% of North America and 1.4% of Europe ([the script](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/raster-disagreement.mjs), 60,000 samples per region, run it yourself).
 
-So the ecosystem asks you to pick: exact but unbundlable, or bundlable but approximate.
+So the usual choice is: exact, but heavy and tied to a filesystem, or light and portable, but approximate. ([tzf and tzf-wasm](#prior-art) are a third answer, carrying compressed polygons into wasm.)
 
 **Your venues, stores or depots are a fixed list.** Resolve them once, at build time, with the exact polygons, and the choice disappears: exact answers, no polygons shipped, nothing read at runtime.
 
 | | geo-tz | tz-lookup (raster) | hosted API | tz-at-point |
 |---|---|---|---|---|
 | Accuracy at your points | exact | ~5–10% wrong | exact | **exact** (it is geo-tz, at build time) |
-| Adds to your bundle | can't be bundled | 77KB | — | **77KB, or 3KB via `/core`** + ~50 bytes per point |
+| Adds to your bundle | 30MB `data/`, shipped beside it | 74KB | — | **77KB, or 3KB via `/core`** + ~50 bytes per point |
 | Reads files at runtime | yes | no | no | **no** |
 | Works on edge runtimes | no | yes | yes | **yes** |
 | Answers any coordinate | yes | yes | yes | your points exactly, everything else via the raster |
-| Cost per lookup | — | — | $5/1k (Google) | — |
+| Cost per lookup | — | — | $5/1k after 10k free (Google) | — |
+
+"Exact" here means it agrees with the OpenStreetMap boundary data, which is what every option in that table is measured against. One case is not exact: a point so close to a border that its rounded key falls on the other side. `build` warns by name when that happens, and [What it promises](#what-it-promises) says what the lookup does about it.
 
 **If none of your points are near a border, you don't need this.** One command tells you, for your own data:
 
@@ -78,7 +82,13 @@ Build resolves each point with geo-tz, then probes the ground around it on a ~10
 
 ## Prior art
 
-Everything maintained in this space answers "any point on Earth, at runtime", and carries a global dataset to do it. People have asked geo-tz for a smaller one for years: in 2018 its maintainer reopened [an issue about shipping a subset](https://github.com/evansiroky/node-geo-tz/issues/75) to say "that'd make a good feature… I'm open to receiving a PR" (it was closed unimplemented), and [a Lambda user asking the same in 2024](https://github.com/evansiroky/node-geo-tz/issues/170) is still waiting. Narrowing the *dataset* is the request; resolving a *known point set* instead is the answer nobody packaged, so people write the same script by hand: resolve the points with geo-tz in `scripts/`, commit the JSON, keep geo-tz out of `src/`.
+Everything else in this space answers "any point on Earth, at runtime", and carries a global dataset to do it. The interesting ones:
+
+- **[tzf](https://github.com/ringsaturn/tzf)** and **[tzf-wasm](https://github.com/ringsaturn/tzf-wasm)** carry compressed polygons and run them in wasm, so they are polygon-accurate with no filesystem. That is the closest architecture to this one, and on an edge runtime it may be the better fit: it answers anywhere, where this package is exact only at points you resolved. It is also a wasm module in your bundle rather than a JSON table in your diff.
+- **geo-tz** itself, if you can ship its `data/` directory and set `GEO_TZ_DATA_PATH`.
+- **[@photostructure/tz-lookup](https://github.com/photostructure/tz-lookup)**, the maintained raster, which this package uses as its fallback.
+
+People have asked geo-tz for a smaller dataset for years: in 2018 its maintainer reopened [an issue about shipping a subset](https://github.com/evansiroky/node-geo-tz/issues/75) to say "that'd make a good feature… I'm open to receiving a PR", and closed it four months later with a commit that added in-memory caching of lookup areas rather than a smaller download. [A Lambda user asking the same in 2024](https://github.com/evansiroky/node-geo-tz/issues/170) has no reply. Narrowing the *dataset* is what people ask for; resolving a *known point set* instead is the answer I could not find packaged anywhere, so people write the same script by hand: resolve the points with geo-tz in `scripts/`, commit the JSON, keep geo-tz out of `src/`.
 
 This is that script, made reliable: probed radii so nearby coordinates still resolve, a `check` command for CI, and the geo-tz version recorded in the table.
 
@@ -108,6 +118,7 @@ npx tz-at-point build points.json -o zones.json
 ```json
 {
   "v": 1,
+  "attribution": "Timezone boundaries from OpenStreetMap (https://www.openstreetmap.org/copyright), ODbL 1.0. Zone names from the IANA tz database, public domain.",
   "geoTz": "8.1.9",
   "maxRadius": 250,
   "points": {
@@ -188,7 +199,7 @@ read node_modules/tz-at-point/skills/tz-at-point/SKILL.md.
 
 ## What it promises
 
-A `table` or `table-near` answer agrees with the boundary polygons, with two documented exceptions: inside a key's ~11m rounding cell the key's zone wins, and a piece of another zone smaller than the probe lattice can resolve (about 7m) can hide inside a radius. Anything larger is caught, because every stored radius keeps a fully probed ring beyond it.
+A `table` or `table-near` answer agrees with the boundary polygons, with two documented exceptions: inside a key's ~11m rounding cell the key's zone wins, and a piece of another zone smaller than the probe lattice can resolve (about 7m) can hide inside a radius. Every stored radius keeps a fully probed ring beyond it, so a compact region bigger than that is caught, but this is sampling rather than proof: a sliver narrower than the lattice can still thread between probes however long it is.
 
 `check` re-runs those probes against your installed geo-tz, so it catches stale entries, hand edits and moved boundaries. It can't catch what the probes were too coarse to see in the first place.
 
@@ -196,19 +207,22 @@ The rest, measured rather than asserted:
 
 | | |
 |---|---|
-| Lookup | ~350ns from the table, ~480ns through the raster |
-| Startup | 60-270ms and 10-15MB for a 30,000-point table |
-| Build | ~2,200 geo-tz probes per point at the default radius |
+| Lookup | ~380ns from the table, ~550ns through the raster |
+| Startup | 55-70ms and ~18MB for 30,000 points spread worldwide |
+| Build | 2,218 geo-tz probes per point at the default radius, 8,357 at 500 |
 | Runtime dependencies | one, the raster; `tz-at-point/core` keeps it out of your bundle |
 | Tests | 125, including bundled runs with file reads denied and a lookup checked against a brute-force scan |
-| Also checked | differential fuzzing against geo-tz over millions of points, and mutation testing of the suite |
+
+Timings are from [`scripts/bench.mjs`](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/bench.mjs) on one machine, and startup in particular moves with how your points are spread. Run it on yours rather than trusting mine.
+
+During development the radius prober was also fuzzed differentially against geo-tz, and the suite was checked with mutation testing. Neither runs in CI. The fuzzer's one real find was a radius that could over-claim about 124m from its key; [`test/radius.test.ts`](https://github.com/oo-pibe/tz-at-point/blob/main/test/radius.test.ts) keeps that case.
 
 ## Keeping the table current
 
-Timezone boundaries ship 2–4 times a year, and occasionally a zone genuinely changes: `America/Coyhaique` was carved out of `America/Santiago` in 2025b, `Asia/Choibalsan` was removed in 2024b. A committed table can go stale, so it says what produced it:
+Timezone boundaries ship 2–4 times a year, and occasionally a zone genuinely changes: `America/Coyhaique` was carved out of `America/Santiago` in 2025b, `Asia/Choibalsan` became an alias for `Asia/Ulaanbaatar` in 2024b. A committed table can go stale, so it says what produced it:
 
 ```json
-{ "v": 1, "geoTz": "8.1.9", "maxRadius": 250, "points": { … } }
+{ "v": 1, "attribution": "…OpenStreetMap…ODbL 1.0…", "geoTz": "8.1.9", "maxRadius": 250, "points": { … } }
 ```
 
 `check` re-probes every entry against the geo-tz you have installed and prints both versions, so a data bump becomes a failing CI step and a readable diff, not a silent change of answer. That is the part embedded global datasets can't give you: when a library's bundled boundaries age, nothing tells you.
@@ -271,8 +285,8 @@ This package ships no OpenStreetMap data of its own. geo-tz is an optional peer 
 
 | | Packages | Maintainer accounts | Size |
 |---|---|---|---|
-| Runtime (what your app installs) | 2, including this one | 1 | ~250KB |
-| Build time, with geo-tz | 30 more | 63 more | 73MB |
+| Runtime (what your app installs) | 2, including this one | 1 | ~180KB |
+| Build time, with geo-tz | 29 more | 62 more | 74MB |
 
 The CLI loads geo-tz through a dynamic import, so it never enters a consumer's runtime graph. If you only need the table, `npm install --save-dev geo-tz` on the machine that builds it and nothing else inherits that footprint.
 

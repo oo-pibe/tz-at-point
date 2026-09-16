@@ -10,6 +10,8 @@ import { quote } from './text.ts';
  */
 export interface Table {
   v: 1;
+  /** The OpenStreetMap/ODbL credit, written into every generated table so the file explains itself. */
+  attribution?: string;
   /** The `--max-radius` the table was built with, so a later build can tell its radii apart from probed ones. */
   maxRadius?: number;
   /** The geo-tz version whose boundaries produced these zones, so a data bump is visible in the diff. */

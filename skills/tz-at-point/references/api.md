@@ -8,7 +8,7 @@ Node 20.19+ or 22.12+. Published types work with TypeScript 5.0 or later.
 
 Two entry points, same function:
 
-- `tz-at-point` answers points outside the table with a bundled raster (~77KB in a bundle).
+- `tz-at-point` answers points outside the table with a bundled raster (74KB in a bundle; 77KB with this package around it).
 - `tz-at-point/core` has no fallback, so the raster never enters your bundle (~3KB). Points outside the table return `{ zone: null, source: null }` unless you pass your own `fallback`.
 
 ## `createLookup(table, options?)`
@@ -38,7 +38,7 @@ interface Options {
 }
 ```
 
-- `fallback` defaults to `@photostructure/tz-lookup`: a 73KB raster, no file reads, approximate near borders.
+- `fallback` defaults to `@photostructure/tz-lookup`: a 74KB raster once bundled, no file reads, approximate near borders.
 - `fallback: null` answers only from the table; everything outside it returns `{ zone: null, source: null }`.
 - A fallback that throws, returns a non-string, or returns something that is not a zone name is treated as no answer.
 
@@ -86,6 +86,9 @@ A `table` or `table-near` answer matches the polygons, with two exceptions:
 ```ts
 interface Table {
   v: 1;
+  attribution?: string;
+  maxRadius?: number;
+  geoTz?: string;
   points: Record<string, [zone: string, radius: number]>;
 }
 ```
@@ -93,6 +96,7 @@ interface Table {
 ```json
 {
   "v": 1,
+  "attribution": "Timezone boundaries from OpenStreetMap (https://www.openstreetmap.org/copyright), ODbL 1.0. Zone names from the IANA tz database, public domain.",
   "geoTz": "8.1.9",
   "maxRadius": 250,
   "points": {

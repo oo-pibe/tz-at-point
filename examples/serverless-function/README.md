@@ -19,6 +19,7 @@ Two things to notice. The Tornio kickoff is at 21:30 UTC and lands on the **next
 
 ```sh
 $ npm run zones:audit
+built with geo-tz 8.1.9
 raster: 2 of 4 points disagree with the table, 2 by a different UTC offset
   -4.2527,-69.9381: raster says America/Eirunepe, table says America/Manaus
   65.8481,24.1466: raster says Europe/Stockholm, table says Europe/Helsinki

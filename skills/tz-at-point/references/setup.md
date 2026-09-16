@@ -7,11 +7,11 @@ npm install tz-at-point
 npm install --save-dev geo-tz
 ```
 
-geo-tz (about 70MB, 30 packages) is only for `build` and `check`, and nothing at runtime imports it. At runtime a consumer installs two packages: this one and the raster.
+geo-tz (about 74MB, 29 packages) is only for `build` and `check`, and nothing at runtime imports it. At runtime a consumer installs two packages: this one and the raster.
 
 Generated tables carry an `attribution` line naming OpenStreetMap and the ODbL, because the boundaries come from there. Anything you ship that bundles the raster should credit OpenStreetMap; see the README's data sources section. tz-at-point needs Node 20.19+ or 22.12+, and is ESM: `require('tz-at-point')` works from Node 22.12 on.
 
-Importing from `tz-at-point/core` gives the same `createLookup` with no raster fallback, so the 73KB raster never enters your bundle. Points outside the table then answer `{ zone: null }`.
+Importing from `tz-at-point/core` gives the same `createLookup` with no raster fallback, so the raster (74KB bundled) never enters your bundle. Points outside the table then answer `{ zone: null }`.
 
 ## The points file
 
@@ -37,7 +37,7 @@ The table must be imported, not read with `fs`, so the bundler embeds it.
 | Bundlers: Next.js, Vite, esbuild, webpack, TypeScript `moduleResolution: bundler` | `import table from './zones.json';` also works |
 | CommonJS | `const table = require('./zones.json');` works, but `require('tz-at-point')` needs Node 22.12 or later |
 
-- Add `"resolveJsonModule": true` to `tsconfig.json` (needed on TypeScript 5.3 to 5.8 with nodenext; harmless otherwise).
+- Add `"resolveJsonModule": true` to `tsconfig.json`. Required on every TypeScript version tested (5.0 through 7.0) when `moduleResolution` is `nodenext`, otherwise the import fails with `TS2732`; harmless in bundler setups.
 - Node prints no warning for JSON imports from 22.12 on.
 - Import other data the function needs (venue lists) the same way. A `readFileSync` of a data file in a serverless handler fails for the same reason geo-tz does. If that data is a CSV, keep it as JSON instead and pass the JSON to `tz-at-point build`, or generate the JSON from the CSV with a script and commit both.
 - If a bundler rejects the `with { type: 'json' }` syntax, use the plain `import table from './zones.json'` form.
