@@ -264,7 +264,7 @@ tz-at-point's code is MIT. The answers come from three upstreams on different te
 
 | What | From | Licence |
 |---|---|---|
-| Zone names (`Europe/Madrid`) | [IANA time zone database](https://www.iana.org/time-zones) | Public domain |
+| Zone names (`Europe/Madrid`) | [IANA time zone database](https://www.iana.org/time-zones) | [Public domain](https://github.com/eggert/tz/blob/main/LICENSE) |
 | Boundaries, at build time | [geo-tz](https://github.com/evansiroky/node-geo-tz) ← [timezone-boundary-builder](https://github.com/evansiroky/timezone-boundary-builder) ← OpenStreetMap | Code MIT, data [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/) |
 | Raster fallback, at runtime | [@photostructure/tz-lookup](https://github.com/photostructure/tz-lookup) | CC0-1.0, built from the same OpenStreetMap boundaries |
 
@@ -283,7 +283,9 @@ Every dependency here resolves from the npm registry with a verified signature, 
 
 ### What that means for your table
 
-`zones.json` holds your own coordinates, a zone name and a radius. It carries no OpenStreetMap geometry. The OSM Foundation's [Geocoding Guideline](https://osmfoundation.org/wiki/Licence/Community_Guidelines/Geocoding_-_Guideline) treats results like these as insubstantial extracts that don't trigger ODbL share-alike, and its [Attribution Guidelines](https://osmfoundation.org/wiki/Licence/Attribution_Guidelines) say a group of geocoding results "need not maintain attribution attached to the results, as long as it does not form a Derivative Database". Committing the table doesn't put your application code under ODbL.
+`zones.json` holds your own coordinates, a zone name and a radius. It carries no OpenStreetMap geometry. The OSM Foundation's [Geocoding Guideline](https://osmfoundation.org/wiki/Licence/Community_Guidelines/Geocoding_-_Guideline) treats results like these as insubstantial extracts that don't trigger ODbL share-alike, and its [Attribution Guidelines](https://osmfoundation.org/wiki/Licence/Attribution_Guidelines) say a group of geocoding results "need not maintain attribution attached to the results, as long as it does not form a Derivative Database". Committing the table doesn't put your application code under ODbL, and the licence itself [doesn't reach software](https://opendatacommons.org/licenses/odbl/1-0/) ("This License does not apply to computer programs used in the making or operation of the Database").
+
+Those guidelines are the Foundation's stated view rather than the licence text, and by its own [Legal FAQ](https://osmfoundation.org/wiki/Licence/Licence_and_Legal_FAQ) they "carry no formal legal weight". No court has ruled on where the line sits. If your table is large or central to a product, read them yourself.
 
 Two things still apply.
 
