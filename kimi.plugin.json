@@ -1,5 +1,5 @@
 {
   "name": "tz-at-point",
-  "description": "Offline timezone lookup for coordinates you know in advance: resolve points to IANA timezones at build time with geo-tz, commit a small table, look them up with no filesystem access.",
+  "description": "Offline IANA timezone lookup for known coordinates in serverless and edge functions.",
   "skills": "./skills/"
 }

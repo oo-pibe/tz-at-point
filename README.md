@@ -6,7 +6,7 @@
 [![npm](https://img.shields.io/npm/v/tz-at-point)](https://www.npmjs.com/package/tz-at-point)
 [![install size](https://badgen.net/packagephobia/install/tz-at-point)](https://packagephobia.com/result?p=tz-at-point)
 [![types: TypeScript](https://img.shields.io/npm/types/tz-at-point)](https://www.typescriptlang.org/)
-[![license: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/oo-pibe/tz-at-point/blob/main/LICENSE)
 
 Timezone lookup from latitude and longitude, resolved offline at build time. You point the CLI at your own coordinates, it resolves each one against the real timezone boundaries with geo-tz, and commits the answers as a small JSON table. At runtime `createLookup` reads that table, then a nearby entry, then a compact raster, and never touches the filesystem, which is what makes it safe inside a bundled serverless function.
 
@@ -20,7 +20,7 @@ zoneAt(65.8481, 24.1466); // { zone: 'Europe/Helsinki', source: 'table' }
 zoneAt(40.4168, -3.7038); // { zone: 'Europe/Madrid',   source: 'raster' }
 ```
 
-**Status:** 1.0.0. The runtime API is stable and the table format is versioned; changes are recorded in the [changelog](CHANGELOG.md).
+**Status:** 1.0.0. The runtime API is stable and the table format is versioned; changes are recorded in the [changelog](https://github.com/oo-pibe/tz-at-point/blob/main/CHANGELOG.md).
 
 [Why](#why) · [How it works](#how-it-works) · [Prior art](#prior-art) · [Install](#install) · [Quick start](#quick-start) · [API](#api) · [CLI](#cli) · [AI coding agents](#use-with-ai-coding-agents) · [Timezones](#timezones) · [What it promises](#what-it-promises) · [Keeping the table current](#keeping-the-table-current) · [Troubleshooting](#troubleshooting) · [FAQ](#faq) · [Data sources](#data-sources)
 
@@ -151,9 +151,9 @@ type Result =
 - `options.fallback` swaps the raster for your own, or `null` turns it off. Importing from `tz-at-point/core` leaves the raster out of your bundle entirely.
 - `pointKey(lat, lng)` gives the table key for a coordinate.
 
-A complete handler, with its table, CI step and audit: [examples/serverless-function](examples/serverless-function).
+A complete handler, with its table, CI step and audit: [examples/serverless-function](https://github.com/oo-pibe/tz-at-point/tree/main/examples/serverless-function).
 
-Full detail: [API reference](skills/tz-at-point/references/api.md) · [CLI reference](skills/tz-at-point/references/cli.md) · [setup guide](skills/tz-at-point/references/setup.md).
+Full detail: [API reference](https://github.com/oo-pibe/tz-at-point/blob/main/skills/tz-at-point/references/api.md) · [CLI reference](https://github.com/oo-pibe/tz-at-point/blob/main/skills/tz-at-point/references/cli.md) · [setup guide](https://github.com/oo-pibe/tz-at-point/blob/main/skills/tz-at-point/references/setup.md).
 
 ## CLI
 
@@ -168,7 +168,7 @@ Exit codes: `0` success, `1` a check found a problem, `2` bad arguments or input
 
 ## Use with AI coding agents
 
-tz-at-point ships an agent skill, [skills/tz-at-point/SKILL.md](skills/tz-at-point/SKILL.md), that teaches a coding agent the whole workflow: building the table, wiring up the lookup, CI, and what each warning means. It uses the open Agent Skills format, so one folder works across tools.
+tz-at-point ships an agent skill, [skills/tz-at-point/SKILL.md](https://github.com/oo-pibe/tz-at-point/blob/main/skills/tz-at-point/SKILL.md), that teaches a coding agent the whole workflow: building the table, wiring up the lookup, CI, and what each warning means. It uses the open Agent Skills format, so one folder works across tools.
 
 | Tool | Install | Checked |
 |---|---|---|
@@ -298,7 +298,7 @@ This is a summary, not legal advice.
 
 ## Contributing
 
-Bug reports are welcome, especially ones with a coordinate that gets the wrong answer. See [CONTRIBUTING.md](CONTRIBUTING.md), and [AGENTS.md](AGENTS.md) for how the code fits together.
+Bug reports are welcome, especially ones with a coordinate that gets the wrong answer. See [CONTRIBUTING.md](https://github.com/oo-pibe/tz-at-point/blob/main/CONTRIBUTING.md), and [AGENTS.md](https://github.com/oo-pibe/tz-at-point/blob/main/AGENTS.md) for how the code fits together.
 
 ## Origin
 

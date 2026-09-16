@@ -39,6 +39,22 @@ test('every relative link in the docs resolves', () => {
   }
 });
 
+/**
+ * README links must be absolute: npm renders it through GitHub's Markdown API, which does not
+ * rewrite relative URLs. That moves them out of reach of the check above, so verify them here.
+ */
+test('every link into our own repo points at a file that exists', () => {
+  const self = /https:\/\/(?:github\.com\/oo-pibe\/tz-at-point\/(?:blob|tree)|raw\.githubusercontent\.com\/oo-pibe\/tz-at-point)\/main\/([^)\s"]+)/g;
+  let found = 0;
+  for (const file of docs()) {
+    for (const [, target] of read(file).matchAll(self)) {
+      assert.ok(existsSync(resolve(root, target)), `${file} links to missing ${target}`);
+      found++;
+    }
+  }
+  assert.ok(found >= 9, `expected the README's absolute self-links, found ${found}`);
+});
+
 /** GitHub's heading anchors: lowercased, punctuation dropped, spaces hyphenated. */
 const slug = (heading: string) => heading.toLowerCase().replace(/[^\w\- ]/g, '').trim().replace(/ /g, '-');
 

@@ -1,6 +1,6 @@
 {
   "name": "tz-at-point",
-  "description": "tz-at-point, the IANA timezone at a coordinate, as a skill for coding agents",
+  "description": "Offline IANA timezone lookup for known coordinates in serverless and edge functions.",
   "owner": {
     "name": "oo-pibe",
     "url": "https://github.com/oo-pibe"
@@ -9,7 +9,7 @@
     {
       "name": "tz-at-point",
       "source": "./",
-      "description": "Offline timezone lookup for coordinates you know in advance: resolve points to IANA timezones at build time with geo-tz, commit a small table, look them up with no filesystem access."
+      "description": "Offline IANA timezone lookup for known coordinates in serverless and edge functions."
     }
   ]
 }
