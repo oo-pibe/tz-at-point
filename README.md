@@ -1,6 +1,6 @@
 # tz-at-point
 
-**The IANA timezone at a coordinate, exact where it matters, with no file reads at runtime.**
+**Exact IANA timezones for the coordinates you already know, with no file reads at runtime.**
 
 [![ci](https://github.com/oo-pibe/tz-at-point/actions/workflows/ci.yml/badge.svg)](https://github.com/oo-pibe/tz-at-point/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/tz-at-point)](https://www.npmjs.com/package/tz-at-point)
@@ -37,9 +37,32 @@ Error: ENOENT: no such file or directory, open
 | Tornio, Finland | 65.8481, 24.1466 | Europe/Stockholm | Europe/Helsinki | 1 hour |
 | Tabatinga, Brazil | -4.2527, -69.9381 | America/Eirunepe | America/Manaus | 1 hour |
 
-At uniformly random points on land, the raster returns a zone with the wrong UTC offset for about **3% of the world**, 2.7% of North America and 1–2% of Europe. Your stadiums, stores or depots are a fixed list, so you can resolve them properly, once, and stop guessing.
+[Its own README](https://github.com/photostructure/tz-lookup) puts the disagreement with geo-tz at ~10% of likely-inhabited points, ~5% even after forgiving zones whose clocks match. Measured a different way, at uniformly random points on land it returns a zone with the wrong UTC offset for about **3% of the world**, 2.7% of North America and 1–2% of Europe.
 
-**If none of your points are near a border, you don't need tz-at-point.** Use the raster on its own.
+So the ecosystem asks you to pick: exact but unbundlable, or bundlable but approximate.
+
+**Your venues, stores or depots are a fixed list.** Resolve them once, at build time, with the exact polygons, and the choice disappears: exact answers, no polygons shipped, nothing read at runtime.
+
+| | geo-tz | tz-lookup (raster) | hosted API | tz-at-point |
+|---|---|---|---|---|
+| Accuracy at your points | exact | ~5–10% wrong | exact | **exact** (it is geo-tz, at build time) |
+| Install / bundle | 73MB | 88KB | — | 29KB + ~45 bytes per point |
+| Reads files at runtime | yes | no | no | **no** |
+| Works on edge runtimes | no | yes | yes | **yes** |
+| Answers any coordinate | yes | yes | yes | your points exactly, everything else via the raster |
+| Cost per lookup | — | — | $5/1k (Google) | — |
+
+**If none of your points are near a border, you don't need this.** One command tells you, for your own data:
+
+```console
+$ npx tz-at-point check zones.json --raster
+raster: 2 of 3 points disagree with the table, 2 by a different UTC offset
+  -4.2527,-69.9381: raster says America/Eirunepe, table says America/Manaus
+  65.8481,24.1466: raster says Europe/Stockholm, table says Europe/Helsinki
+ok: 3 points match the polygons
+```
+
+If that count is 0, use the raster on its own and skip this package.
 
 ## How it works
 
@@ -56,6 +79,12 @@ flowchart LR
 ```
 
 Build resolves each point with geo-tz, then probes the ground around it on a ~10m lattice to find how far that zone holds. Those two facts, the zone and that radius, are all the runtime needs.
+
+## Prior art
+
+Everything maintained in this space answers "any point on Earth, at runtime", and carries a global dataset to do it. Precomputing for a *known* point set has been asked for and never built: geo-tz's maintainer [reopened an issue in 2018](https://github.com/evansiroky/node-geo-tz/issues/75) to say it "would make a good feature… I'm open to receiving a PR", and [a Lambda user asking for a smaller package in 2024](https://github.com/evansiroky/node-geo-tz/issues/170) is still waiting. Meanwhile people write the same script by hand, over and over: resolve the points with geo-tz in `scripts/`, commit the JSON, keep geo-tz out of `src/`.
+
+This is that script, made reliable: probed radii so nearby coordinates still resolve, a `check` command for CI, and the geo-tz version recorded in the table.
 
 ## Install
 
@@ -175,6 +204,16 @@ The rest, measured rather than asserted:
 | Runtime dependencies | one, the 73KB raster, or none via `tz-at-point/core` |
 | Tests | 115, including a bundled run with file reads denied and a lookup checked against a brute-force scan |
 | Also checked | differential fuzzing against geo-tz over millions of points, and mutation testing of the suite |
+
+## Keeping the table current
+
+Timezone boundaries ship 2–4 times a year, and occasionally a zone genuinely changes: `America/Coyhaique` was carved out of `America/Santiago` in 2025b, `Asia/Choibalsan` was removed in 2024b. A committed table can go stale, so it says what produced it:
+
+```json
+{ "v": 1, "geoTz": "8.1.8", "maxRadius": 250, "points": { … } }
+```
+
+`check` re-probes every entry against the geo-tz you have installed and prints both versions, so a data bump becomes a failing CI step and a readable diff, not a silent change of answer. That is the part embedded global datasets can't give you: when a library's bundled boundaries age, nothing tells you.
 
 ## Troubleshooting
 

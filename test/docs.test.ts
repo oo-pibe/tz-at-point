@@ -41,7 +41,7 @@ test('every relative link in the docs resolves', () => {
 
 /** Every message a user can see, as fragments. Each must still be in src/ and be explained in references/cli.md. */
 const MESSAGES = [
-  'up to date:', 'missing from', 'built with geo-tz', 're-resolved at --max-radius', 'kept changing underneath this build', 'does not exist yet', 'run: npx tz-at-point build', 'wrote ', 'resolved', 'changed',
+  'up to date:', 'missing from', 'disagrees', 'by a different UTC offset', 'built with geo-tz', 're-resolved at --max-radius', 'kept changing underneath this build', 'does not exist yet', 'run: npx tz-at-point build', 'wrote ', 'resolved', 'changed',
   'is within 10m of another zone', 'lookups that round to it answer', 'but its key', 'lookups there answer',
   'table says', 'polygons say', 'reaches another zone', "not a zone this runtime's Intl accepts", 'ok:',
   'the polygons', 'fix: rebuild the table with --refresh', 'fix: update Node', 'this command needs geo-tz 8 or later',

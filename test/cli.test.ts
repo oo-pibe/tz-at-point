@@ -104,6 +104,17 @@ test('check names the right fix for each kind of failure', () => {
   assert.match(r.stdout, /fix: rebuild the table with --refresh/); // the zone also disagrees with the polygons
 });
 
+test('check --raster counts how many of your own points the raster alone would get wrong', () => {
+  // Tornio is the documented case: the raster says Europe/Stockholm, an hour behind Europe/Helsinki.
+  const w = workspace([[65.8481, 24.1466], [51.5561, -0.2794]]);
+  assert.equal(run('build', w.points, '-o', w.out).status, 0);
+  const r = run('check', w.out, '--raster');
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /raster: 1 of 2 points disagrees with the table, 1 by a different UTC offset/);
+  assert.match(r.stdout, /65\.8481,24\.1466: raster says Europe\/Stockholm, table says Europe\/Helsinki/);
+  assert.doesNotMatch(run('check', w.out).stdout, /raster:/, 'only with the flag');
+});
+
 test('a file that is not JSON is named, never echoed', () => {
   const w = workspace('AWS_SECRET_ACCESS_KEY=abc123');
   writeFileSync(join(w.dir, 'ok.json'), '[[1,2]]');

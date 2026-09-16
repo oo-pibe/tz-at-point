@@ -45,7 +45,7 @@ Paths and table content in messages are escaped to printable ASCII. Usage text a
 - `warning: 51.449039,4.930128 is in Europe/Brussels, but its key 51.4490,4.9301 is in Europe/Amsterdam; lookups there answer Europe/Amsterdam`: the input point is within a few meters of a border, across it from its rounded key. On stderr. Only points whose key is added in that run are compared, so a new point that shares an existing key is never checked. Move the coordinate onto the correct side if it matters.
 - `...and 12 more`: lists are cut at 20 lines.
 
-## `tz-at-point check <zones.json>`
+## `tz-at-point check <zones.json> [--raster]`
 
 Re-runs build's probes for every entry against the installed geo-tz, and checks every zone name against the runtime's `Intl`. Run it after upgrading geo-tz or Node, or in CI (give it a timeout on tables you didn't build: cost grows with each radius squared).
 
@@ -53,6 +53,7 @@ It uses the same lattice build used, so it finds stale entries, hand edits and m
 
 **Output**
 
+- With `--raster`: `raster: 1 of 2 points disagrees with the table, 1 by a different UTC offset`, followed by each disagreement (`65.8481,24.1466: raster says Europe/Stockholm, table says Europe/Helsinki`). This is what the bundled fallback alone would answer for your own points, so it shows what the table is buying you. Informational; it never changes the exit code. If the count is 0, the raster alone would do for your data.
 - `built with geo-tz 8.1.8`, or `built with geo-tz 8.1.8, checked against 8.2.0` when the installed version has moved on. Informational: `check` re-probes against what is installed either way, so a version difference alone is not a failure.
 - `ok: 5 points match the polygons` (`1 point matches`): exit 0.
 - `FAIL 51.4926,7.4519: table says Europe/Paris, polygons say Europe/Berlin`: the entry's zone is wrong for the installed geo-tz: the table was edited, merged badly, or boundaries changed. Exit 1.

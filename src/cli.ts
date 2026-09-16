@@ -14,7 +14,7 @@ import { printable } from './text.ts';
 
 const USAGE = `usage:
   tz-at-point build <points.json|points.csv> -o <zones.json> [--check | --refresh] [--max-radius 250]
-  tz-at-point check <zones.json>`;
+  tz-at-point check <zones.json> [--raster]`;
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const verb = (n: number, singular: string, plural_: string) => (n === 1 ? singular : plural_);
@@ -222,7 +222,11 @@ async function build(args: string[]): Promise<number> {
 }
 
 async function check(args: string[]): Promise<number> {
-  const { values, positionals } = parseArgs({ args, allowPositionals: true, options: { help: { type: 'boolean', short: 'h' } } });
+  const { values, positionals } = parseArgs({
+    args,
+    allowPositionals: true,
+    options: { raster: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } },
+  });
   if (values.help) {
     console.log(USAGE);
     return 0;
@@ -253,6 +257,18 @@ async function check(args: string[]): Promise<number> {
     const [truth, safe] = resolve(find, lat, lng, radius);
     if (truth !== zone) stale.push(`FAIL ${key}: table says ${zone}, polygons say ${truth}`);
     else if (safe < radius) stale.push(`FAIL ${key}: radius ${radius}m reaches another zone`);
+  }
+
+  // What the raster alone would answer for these same points: the case for keeping the table at all.
+  if (values.raster) {
+    const { default: tzlookup } = await import('@photostructure/tz-lookup');
+    const offsets = (zone: string) => ['2026-01-15T12:00:00Z', '2026-07-15T12:00:00Z']
+      .map((iso) => new Intl.DateTimeFormat('en', { timeZone: zone, timeZoneName: 'longOffset' }).format(new Date(iso)))
+      .join();
+    const differing = entries.map((e) => ({ e, raster: tzlookup(e.lat, e.lng) })).filter(({ e, raster }) => raster !== e.zone);
+    const shifted = differing.filter(({ e, raster }) => offsets(raster) !== offsets(e.zone));
+    console.log(`raster: ${differing.length} of ${plural(entries.length, 'point')} ${verb(differing.length, 'disagrees', 'disagree')} with the table, ${shifted.length} by a different UTC offset`);
+    printCapped(differing.map(({ e, raster }) => `  ${e.key}: raster says ${raster}, table says ${e.zone}`));
   }
 
   if (unknownZones.length === 0 && stale.length === 0) {

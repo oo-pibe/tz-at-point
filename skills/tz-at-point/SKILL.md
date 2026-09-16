@@ -31,6 +31,7 @@ Copy this and tick it off.
 - [ ] Handle { zone: null } and treat source 'raster' for a known point as a stale table
 - [ ] CI step 1: npx tz-at-point build <points> -o <zones.json> --check   (a point was added without rebuilding)
 - [ ] CI step 2: npx tz-at-point check <zones.json>                      (table edited, or geo-tz/Node changed)
+- [ ] Once, to see what the table is worth here: npx tz-at-point check <zones.json> --raster
 - [ ] After any geo-tz, tz-at-point or Node version change (npm update included): build --refresh, check, review the diff
 ```
 
