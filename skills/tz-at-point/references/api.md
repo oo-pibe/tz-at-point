@@ -93,7 +93,7 @@ interface Table {
 ```json
 {
   "v": 1,
-  "geoTz": "8.1.8",
+  "geoTz": "8.1.9",
   "maxRadius": 250,
   "points": {
     "51.4394,4.9275": ["Europe/Amsterdam",0],

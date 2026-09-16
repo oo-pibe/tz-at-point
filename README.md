@@ -61,7 +61,7 @@ So the ecosystem asks you to pick: exact but unbundlable, or bundlable but appro
 
 ```console
 $ npx tz-at-point check zones.json --raster
-built with geo-tz 8.1.8
+built with geo-tz 8.1.9
 raster: 2 of 3 points disagree with the table, 2 by a different UTC offset
   -4.2527,-69.9381: raster says America/Eirunepe, table says America/Manaus
   65.8481,24.1466: raster says Europe/Stockholm, table says Europe/Helsinki
@@ -108,7 +108,7 @@ npx tz-at-point build points.json -o zones.json
 ```json
 {
   "v": 1,
-  "geoTz": "8.1.8",
+  "geoTz": "8.1.9",
   "maxRadius": 250,
   "points": {
     "51.5561,-0.2794": ["Europe/London",250],
@@ -208,7 +208,7 @@ The rest, measured rather than asserted:
 Timezone boundaries ship 2–4 times a year, and occasionally a zone genuinely changes: `America/Coyhaique` was carved out of `America/Santiago` in 2025b, `Asia/Choibalsan` was removed in 2024b. A committed table can go stale, so it says what produced it:
 
 ```json
-{ "v": 1, "geoTz": "8.1.8", "maxRadius": 250, "points": { … } }
+{ "v": 1, "geoTz": "8.1.9", "maxRadius": 250, "points": { … } }
 ```
 
 `check` re-probes every entry against the geo-tz you have installed and prints both versions, so a data bump becomes a failing CI step and a readable diff, not a silent change of answer. That is the part embedded global datasets can't give you: when a library's bundled boundaries age, nothing tells you.
