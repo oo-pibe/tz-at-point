@@ -224,6 +224,62 @@ test('a dangling symlink target is created, not replaced by a regular file', () 
   assert.equal(Object.keys(readOut(real)).length, 1);
 });
 
+test('concurrent builds keep every entry each of them reported writing', () => {
+  const w = workspace([[51.5561, -0.2794]]);
+  const madrid = join(w.dir, 'madrid.json');
+  const tokyo = join(w.dir, 'tokyo.json');
+  writeFileSync(madrid, JSON.stringify([[40.4168, -3.7038]]));
+  writeFileSync(tokyo, JSON.stringify([[35.6762, 139.6503]]));
+  const runs = [w.points, madrid, tokyo].map((points) =>
+    spawnSync(process.execPath, ['-e', `require('node:child_process').spawnSync(${JSON.stringify(process.execPath)}, [${JSON.stringify(CLI)}, 'build', ${JSON.stringify(points)}, '-o', ${JSON.stringify(w.out)}], { stdio: 'inherit' })`], { encoding: 'utf8' }));
+  // (spawnSync is sequential; the real race is exercised by the parallel runs below)
+  for (const r of runs) assert.equal(r.status, 0, r.stderr);
+  const parallel = spawnSync(process.execPath, ['-e', `
+    const { spawn } = require('node:child_process');
+    const points = ${JSON.stringify([w.points, madrid, tokyo])};
+    let done = 0;
+    for (const p of points) spawn(${JSON.stringify(process.execPath)}, [${JSON.stringify(CLI)}, 'build', p, '-o', ${JSON.stringify(w.out)}, '--refresh'], { stdio: 'ignore' })
+      .on('exit', (code) => { if (code !== 0) process.exitCode = 1; if (++done === points.length) process.exit(process.exitCode ?? 0); });
+  `], { encoding: 'utf8' });
+  assert.equal(parallel.status, 0, parallel.stderr);
+  assert.deepEqual(Object.keys(readOut(w.out)).sort(), ['35.6762,139.6503', '40.4168,-3.7038', '51.5561,-0.2794']);
+});
+
+test('the table records the --max-radius it was built with, and a later build re-resolves rather than mixing', () => {
+  const w = workspace([[51.5561, -0.2794]]);
+  assert.equal(run('build', w.points, '-o', w.out, '--max-radius', '0').status, 0);
+  assert.equal(JSON.parse(readFileSync(w.out, 'utf8')).maxRadius, 0);
+  assert.equal(readOut(w.out)['51.5561,-0.2794'][1], 0);
+
+  const again = run('build', w.points, '-o', w.out); // default 250
+  assert.equal(again.status, 0, again.stderr);
+  assert.equal(readOut(w.out)['51.5561,-0.2794'][1], 250, 'radii should follow the --max-radius in force');
+  assert.equal(again.stderr, '', 'a radius of 0 that came from --max-radius 0 is not a border warning');
+  assert.match(again.stdout, /re-resolved/);
+});
+
+test('build works where fsync and fchmod are unavailable', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  const permission = process.allowedNodeEnvironmentFlags.has('--permission') ? '--permission' : '--experimental-permission';
+  const r = spawnSync(process.execPath, [permission, `--allow-fs-read=*`, `--allow-fs-write=${w.dir}/*`, CLI, 'build', w.points, '-o', w.out], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.equal(Object.keys(readOut(w.out)).length, 1);
+});
+
+test('a long output filename still fits a temp file', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  const long = join(w.dir, `${'a'.repeat(240)}.json`);
+  const r = run('build', w.points, '-o', long);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(Object.keys(readOut(long)).length, 1);
+});
+
+test('Node\'s own multi-line errors stay readable', () => {
+  const r = run('build', 'x.json', '-o', 'y.json', '--max-radius', '-10');
+  assert.equal(r.status, 2);
+  assert.doesNotMatch(r.stderr, /\\u000a/);
+});
+
 test('--help works on subcommands, and extensions are case-insensitive', () => {
   assert.equal(run('build', '--help').status, 0);
   assert.equal(run('check', '-h').status, 0);

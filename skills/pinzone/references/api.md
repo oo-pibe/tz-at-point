@@ -67,6 +67,15 @@ const key = pointKey(lat, lng);
 const known = key !== null && Object.hasOwn(table.points, key);
 ```
 
+## Accuracy
+
+A `table` or `table-near` answer matches the polygons, with two exceptions:
+
+- Inside a key's ~11m cell, the key's zone is the answer, border or not.
+- A piece of another zone smaller than the probe lattice can resolve (about 7m) can hide inside the radius. Everything larger is found, including near the radius edge, because the radius keeps a verified ring beyond it.
+
+`raster` answers are approximate everywhere, and wrong near borders often enough to matter (see the README).
+
 ## `Table`
 
 ```ts
@@ -79,6 +88,7 @@ interface Table {
 ```json
 {
   "v": 1,
+  "maxRadius": 250,
   "points": {
     "51.4394,4.9275": ["Europe/Amsterdam",0],
     "51.5561,-0.2794": ["Europe/London",250]
@@ -88,6 +98,7 @@ interface Table {
 
 - Keys: `lat,lng`, each with exactly 4 decimals, as `pointKey` produces them.
 - Zone: an IANA name, letters, digits, `_`, `+`, `-`, up to three `/`-separated parts.
-- Radius: meters, a multiple of 10 from 0 to 1000. It is the widest disc around the key in which build's probes (10m apart) all found the same zone, capped by `--max-radius`. Radius 0 means another zone is within 10m, unless the table was built with `--max-radius 0`.
+- Radius: meters, a multiple of 10 from 0 to 1000. It is the widest disc around the key that build's probes vouch for: a ~10m lattice, with a whole verified ring beyond the radius itself, because a ring only samples its circle at intervals. Radius 0 means another zone is within 10m, unless the table was built with `--max-radius 0`.
+- `maxRadius`: the `--max-radius` the table was built with. A later `build` with a different value re-resolves every entry, because a radius means nothing without the cap it was probed under.
 - The zone and radius are for the rounded key, not for the original input coordinate.
 - `pinzone build` writes keys sorted, one entry per line. Don't edit the file by hand.

@@ -4,6 +4,7 @@ import { destination, metres } from '../src/geo.ts';
 import { createLookup, pointKey } from '../src/index.ts';
 import { cellsReached } from '../src/lookup.ts';
 import { readTable } from '../src/table.ts';
+import { createLookup as coreLookup } from '../src/lookup.ts';
 
 const table = {
   v: 1,
@@ -57,6 +58,17 @@ test('a malformed table throws at creation, not at lookup', () => {
   assert.throws(() => createLookup({ v: 1, points: { nope: ['Europe/London', 0] } }), TypeError);
 });
 
+test('a JSON module namespace says what to pass instead of blaming the version', () => {
+  const namespace = Object.create(null, { [Symbol.toStringTag]: { value: 'Module' }, default: { value: table, enumerable: true } });
+  assert.throws(() => createLookup(namespace), { name: 'TypeError', message: /default export/ });
+});
+
+test('a table from another realm is still a table', async () => {
+  const vm = await import('node:vm');
+  const other = vm.runInNewContext(`(${JSON.stringify(table)})`);
+  assert.equal(createLookup(other, { fallback: null })(51.5561, -0.2794).zone, 'Europe/London');
+});
+
 test('near search agrees with a brute-force scan on a dense table, at the poles and the antimeridian', () => {
   let state = 7;
   const random = () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 2 ** 32;
@@ -103,4 +115,10 @@ test('an entry of any radius reaches only a handful of grid cells, even at the p
 
 test('a custom fallback cannot hand back something that is not a zone name', () => {
   assert.deepEqual(createLookup(table, { fallback: () => '<script>' })(48.85, 2.35), { zone: null, source: null });
+});
+test('pinzone/core answers only from the table, so the raster never reaches a bundle', () => {
+  assert.deepEqual(coreLookup(table)(51.5561, -0.2794), { zone: 'Europe/London', source: 'table' });
+  assert.deepEqual(coreLookup(table)(40.4168, -3.7038), { zone: null, source: null });
+  assert.equal(createLookup(table)(40.4168, -3.7038).source, 'raster'); // the main entry keeps the fallback
+  assert.deepEqual(coreLookup(table, { fallback: () => 'Fake/Zone' })(40.4168, -3.7038), { zone: 'Fake/Zone', source: 'raster' });
 });

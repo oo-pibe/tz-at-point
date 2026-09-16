@@ -29,7 +29,12 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./core": {
+      "types": "./dist/lookup.d.ts",
+      "default": "./dist/lookup.js"
+    },
+    "./package.json": "./package.json"
   },
   "bin": {
     "pinzone": "dist/cli.js"
@@ -40,7 +45,7 @@
     "llms.txt"
   ],
   "engines": {
-    "node": ">=22"
+    "node": "^20.19.0 || >=22.12.0"
   },
   "scripts": {
     "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
@@ -52,7 +57,7 @@
     "@photostructure/tz-lookup": "^11.6.1"
   },
   "peerDependencies": {
-    "geo-tz": "^8.1.0"
+    "geo-tz": "^8.0.0"
   },
   "peerDependenciesMeta": {
     "geo-tz": {

@@ -22,6 +22,8 @@ pinzone answers the IANA timezone at a coordinate from a committed JSON table, f
 ## Invariants
 
 - The lookup function returned by `createLookup` never throws. Bad input gives `{ zone: null, source: null }`.
+- `src/lookup.ts` (`pinzone/core`) has no fallback and must never import the raster; `src/index.ts` adds it. That split is what keeps the raster out of table-only bundles.
+- A stored radius always has a fully probed ring beyond it, so a lobe crossing the radius between two probes cannot be missed.
 - Runtime modules (`index`, `lookup`, `table`, `key`, `geo`, `text`) import no Node built-ins and never import geo-tz. `test/bundle.test.ts` runs a bundled lookup with file reads denied.
 - Table format v1 is frozen: keys are `lat,lng` at 4 decimals with -180 written as 180; values are `[zone, radius]`; radii are multiples of 10 up to 1000.
 - `build` resolves zones with `geo-tz/all`, never the default geo-tz export.

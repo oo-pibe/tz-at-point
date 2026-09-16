@@ -1,0 +1,31 @@
+name: Bug report
+description: Something in pinzone behaves differently than documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, what you got. Paste the exact command and output.
+      placeholder: |
+        $ npx pinzone build points.csv -o zones.json
+        ...
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: 'Run: `node -v && npm ls pinzone geo-tz`'
+      placeholder: |
+        v22.12.0
+        my-app@1.0.0
+        ├── geo-tz@8.1.8
+        └── pinzone@0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: table
+    attributes:
+      label: Points or table entry involved
+      description: The coordinate or table entry, if the problem is about a specific place. Coordinates are usually enough.

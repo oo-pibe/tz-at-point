@@ -6,7 +6,7 @@ usage:
   pinzone check <zones.json>
 ```
 
-`build` and `check` need geo-tz installed as a dev dependency (the peer range asks for 8.1 or later, for its `geo-tz/all` export). `build --check`, and a `build` with nothing to resolve, never load it. `--help` / `-h` prints the usage and exits 0, before or after a command.
+`build` and `check` need geo-tz installed as a dev dependency (8.0.0 or later, for its `geo-tz/all` export). `build --check`, and a `build` with nothing to resolve, never load it. `--help` / `-h` prints the usage and exits 0, before or after a command.
 
 ## `pinzone build <points> -o <zones.json>`
 
@@ -25,14 +25,18 @@ Adds every point missing from the table and never removes an entry. It never re-
 | `-o, --out <file>` | The table to create or extend. Required. If it is a symlink, the file it points to is updated and keeps its permissions. |
 | `--check` | Change nothing. Exit 0 if every point is in the table, 1 if any is missing or the table doesn't exist. Doesn't need geo-tz. |
 | `--refresh` | Re-resolve every entry, old and new, with the installed geo-tz and the given `--max-radius`, and report how many changed (a radius change counts). Pass the same `--max-radius` you built with, or every wider radius shrinks to the default. Can't be combined with `--check`. |
-| `--max-radius <m>` | Largest safe radius to probe. A multiple of 10 from 0 to 1000; default 250. Cost grows with its square: about 2,000 probes per point at 250, 8,000 at 500. |
+| `--max-radius <m>` | Largest safe radius to probe. A multiple of 10 from 0 to 1000; default 250. Cost grows with its square: about 2,000 probes per point at 250, 8,000 at 500. The table records the value, and a later build with a different one re-resolves every entry. |
 | `-h, --help` | Print usage. |
 
-Writes are atomic: a temp file is written and synced, then renamed over the table, so an interrupted build leaves the old table. Paths in messages are escaped to printable ASCII.
+Writes are atomic: a temp file is written and synced, then renamed over the table, so an interrupted build leaves the old table in place. Parallel builds of the same table are safe: each merges with what is on disk and verifies its own entries survived. It also runs under Node's permission model, where fsync and fchmod are unavailable (durability and mode preservation are skipped). A hard link to the table is not followed: the rename leaves the other link on the old contents.
+
+Paths and table content in messages are escaped to printable ASCII. Usage text and Node's own multi-line argument errors keep their line breaks.
 
 **Output**
 
 - `wrote zones.json: 5 points (5 resolved)`: table written. With `--refresh`: `(5 resolved, 1 changed)`.
+- `re-resolved at --max-radius 250: wrote zones.json: …`: the table was built with a different `--max-radius`, so every entry was probed again under the new one.
+- `zones.json kept changing underneath this build; run it again`: five merge attempts in a row were overtaken by other builds writing the same table. Rare; rerun.
 - `up to date: 5 points`: nothing to add; the file was not touched. With `--check`, exit 0.
 - `1 point missing from zones.json:` followed by the missing keys and `run: npx pinzone build points.csv -o zones.json`: from `--check`, exit 1. Run that command and commit the table. The `run:` line repeats a non-default `--max-radius`.
 - `zones.json does not exist yet`: from `--check` when there is no table, exit 1, followed by the same key list and `run:` line.
@@ -44,6 +48,8 @@ Writes are atomic: a temp file is written and synced, then renamed over the tabl
 ## `pinzone check <zones.json>`
 
 Re-runs build's probes for every entry against the installed geo-tz, and checks every zone name against the runtime's `Intl`. Run it after upgrading geo-tz or Node, or in CI (give it a timeout on tables you didn't build: cost grows with each radius squared).
+
+It uses the same lattice build used, so it finds stale entries, hand edits and moved boundaries. It cannot find something build's probes were too coarse to see in the first place.
 
 **Output**
 
@@ -62,7 +68,7 @@ Every error line starts with `pinzone: ` and exits 2.
 |---|---|
 | the usage text | Missing or extra arguments, or an unknown command |
 | `Unknown option '--x'. …` | A flag that doesn't exist |
-| `this command needs geo-tz 8.1 or later: npm install --save-dev geo-tz` | geo-tz missing or too old |
+| `this command needs geo-tz 8 or later: npm install --save-dev geo-tz` | geo-tz missing or too old |
 | `zones.json: not valid JSON` | The file isn't JSON. Its content is never echoed. |
 | `points.txt: points must be a .json or .csv file` | Wrong extension |
 | `--check and --refresh cannot be combined` | Both flags given |

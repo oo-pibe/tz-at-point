@@ -41,10 +41,10 @@ test('every relative link in the docs resolves', () => {
 
 /** Every message a user can see, as fragments. Each must still be in src/ and be explained in references/cli.md. */
 const MESSAGES = [
-  'up to date:', 'missing from', 'does not exist yet', 'run: npx pinzone build', 'wrote ', 'resolved', 'changed',
+  'up to date:', 'missing from', 're-resolved at --max-radius', 'kept changing underneath this build', 'does not exist yet', 'run: npx pinzone build', 'wrote ', 'resolved', 'changed',
   'is within 10m of another zone', 'lookups that round to it answer', 'but its key', 'lookups there answer',
   'table says', 'polygons say', 'reaches another zone', "not a zone this runtime's Intl accepts", 'ok:',
-  'the polygons', 'fix: rebuild the table with --refresh', 'fix: update Node', 'this command needs geo-tz 8.1 or later',
+  'the polygons', 'fix: rebuild the table with --refresh', 'fix: update Node', 'this command needs geo-tz 8 or later',
   'not valid JSON', 'points must be a .json or .csv file', '--check and --refresh cannot be combined',
   '--max-radius must be a multiple of', 'no zone found for', 'JSON points must be an array',
   'expected [lat, lng] or { lat, lng }', 'CSV header must have lat and lng columns', 'unterminated quote',
@@ -90,6 +90,15 @@ test('the plugin manifests agree with each other and with package.json', () => {
 test('the npm package ships the skill and llms.txt', () => {
   const { files } = JSON.parse(read('package.json'));
   assert.ok(files.includes('skills') && files.includes('llms.txt'), JSON.stringify(files));
+});
+
+test('package.json is importable, and pinzone/core exists for table-only consumers', () => {
+  const { exports: map, engines, peerDependencies } = JSON.parse(read('package.json'));
+  assert.equal(map['./package.json'], './package.json');
+  assert.equal(map['./core'].default, './dist/lookup.js');
+  // require() of an ES module lands on Node 22.12; 22.0-22.11 throw ERR_REQUIRE_ESM.
+  assert.equal(engines.node, '^20.19.0 || >=22.12.0');
+  assert.equal(peerDependencies['geo-tz'], '^8.0.0'); // 8.0.0 already exports geo-tz/all
 });
 
 test('Claude Code contributors get AGENTS.md through .claude/CLAUDE.md, not a plugin-root CLAUDE.md', () => {

@@ -55,8 +55,8 @@ test('inherited properties are not a table', () => {
 });
 
 test('formats one sorted entry per line and round-trips', () => {
-  const text = formatTable(new Map([['51.5561,-0.2794', ['Europe/London', 500]], ['35.8854,-5.3279', ['Africa/Ceuta', 0]]]));
-  assert.equal(text, '{\n  "v": 1,\n  "points": {\n    "35.8854,-5.3279": ["Africa/Ceuta",0],\n    "51.5561,-0.2794": ["Europe/London",500]\n  }\n}\n');
+  const text = formatTable(new Map([['51.5561,-0.2794', ['Europe/London', 500]], ['35.8854,-5.3279', ['Africa/Ceuta', 0]]]), 250);
+  assert.equal(text, '{\n  "v": 1,\n  "maxRadius": 250,\n  "points": {\n    "35.8854,-5.3279": ["Africa/Ceuta",0],\n    "51.5561,-0.2794": ["Europe/London",500]\n  }\n}\n');
   assert.equal(readTable(JSON.parse(text)).length, 2);
-  assert.deepEqual(readTable(JSON.parse(formatTable(new Map()))), []);
+  assert.deepEqual(readTable(JSON.parse(formatTable(new Map(), 250))), []);
 });

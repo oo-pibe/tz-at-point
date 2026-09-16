@@ -10,6 +10,8 @@ import { quote } from './text.ts';
  */
 export interface Table {
   v: 1;
+  /** The `--max-radius` the table was built with, so a later build can tell its radii apart from probed ones. */
+  maxRadius?: number;
   points: Record<string, [zone: string, radius: number]>;
 }
 
@@ -30,12 +32,20 @@ export const isRadius = (n: unknown): n is number =>
 /** An IANA zone name: `UTC`, `Etc/GMT+12`, `America/Argentina/Buenos_Aires`. Nothing else reaches callers. */
 export const isZone = (zone: unknown): zone is string => typeof zone === 'string' && /^[\w+-]{1,32}(\/[\w+-]{1,32}){0,2}$/.test(zone);
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  value != null && [Object.prototype, null].includes(Object.getPrototypeOf(value));
+/** True for a JSON-ish object, including one from another realm (whose Object.prototype is not ours). */
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (value === null || typeof value !== 'object') return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === null || Object.getPrototypeOf(proto) === null;
+};
 
 /** Validate a table and return its entries. Throws a TypeError, prefixed with `name`, naming the first problem. */
 export function readTable(table: unknown, name = 'pinzone table'): Entry[] {
   if (!isPlainObject(table)) throw new TypeError(`${name}: must be a plain object`);
+  // `import * as table from './zones.json'` gives a module namespace, not the table.
+  if ((table as { [Symbol.toStringTag]?: string })[Symbol.toStringTag] === 'Module') {
+    throw new TypeError(`${name}: got a module namespace; pass the JSON module's default export`);
+  }
   if (!Object.hasOwn(table, 'v') || table.v !== 1) throw new TypeError(`${name}: unsupported version ${quote(table.v)}`);
   if (!Object.hasOwn(table, 'points') || !isPlainObject(table.points)) throw new TypeError(`${name}: points must be a plain object`);
 
@@ -58,7 +68,13 @@ export function readTable(table: unknown, name = 'pinzone table'): Entry[] {
 }
 
 /** Serialise a table with sorted keys, one entry per line, so diffs stay readable. */
-export function formatTable(points: Map<string, [string, number]>): string {
+export function formatTable(points: Map<string, [string, number]>, maxRadius: number): string {
   const lines = [...points.keys()].sort().map((key) => `    ${JSON.stringify(key)}: ${JSON.stringify(points.get(key))}`);
-  return `{\n  "v": 1,\n  "points": {\n${lines.join(',\n')}${lines.length ? '\n' : ''}  }\n}\n`;
+  return `{\n  "v": 1,\n  "maxRadius": ${maxRadius},\n  "points": {\n${lines.join(',\n')}${lines.length ? '\n' : ''}  }\n}\n`;
 }
+
+/** The `--max-radius` a table was built with, if it recorded one. */
+export const tableMaxRadius = (table: unknown): number | undefined => {
+  const value = (table as { maxRadius?: unknown } | null)?.maxRadius;
+  return isRadius(value) ? value : undefined;
+};

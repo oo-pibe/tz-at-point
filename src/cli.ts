@@ -9,7 +9,7 @@ import { parseArgs } from 'node:util';
 import { keyOf, parseKey } from './key.ts';
 import { pointsFromCsv, pointsFromJson, type Point } from './points.ts';
 import { resolve, type Find } from './radius.ts';
-import { formatTable, isRadius, MAX_RADIUS, RADIUS_STEP, readTable } from './table.ts';
+import { formatTable, isRadius, MAX_RADIUS, RADIUS_STEP, readTable, tableMaxRadius } from './table.ts';
 import { printable } from './text.ts';
 
 const USAGE = `usage:
@@ -33,7 +33,7 @@ async function loadFind(): Promise<Find> {
   // since 1970, and answers Tromsø as Europe/Berlin.
   const geoTz = await import('geo-tz/all').catch((err) => {
     if (['ERR_MODULE_NOT_FOUND', 'ERR_PACKAGE_PATH_NOT_EXPORTED'].includes(err?.code)) {
-      throw new Error('this command needs geo-tz 8.1 or later: npm install --save-dev geo-tz');
+      throw new Error('this command needs geo-tz 8 or later: npm install --save-dev geo-tz');
     }
     throw err;
   });
@@ -76,12 +76,14 @@ function writableTarget(out: string): string {
  */
 function writeAtomically(target: string, text: string): void {
   const dir = dirname(target);
-  const temp = join(dir, `.${basename(target)}.${randomUUID()}.tmp`);
+  // Bounded so a long but legal target name cannot push the temp name past NAME_MAX.
+  const temp = join(dir, `.${basename(target).slice(0, 180)}.${randomUUID().slice(0, 8)}.tmp`);
   const fd = openSync(temp, 'wx', 0o644);
   try {
-    if (existsSync(target)) fchmodSync(fd, statSync(target).mode & 0o777);
+    // Node's permission model disables both of these; the rename still makes the swap atomic.
+    if (existsSync(target)) tolerate(() => fchmodSync(fd, statSync(target).mode & 0o777));
     writeFileSync(fd, text);
-    fsyncSync(fd);
+    tolerate(() => fsyncSync(fd));
   } catch (err) {
     closeSync(fd);
     rmSync(temp, { force: true });
@@ -94,15 +96,23 @@ function writeAtomically(target: string, text: string): void {
     rmSync(temp, { force: true });
     throw err;
   }
-  try {
+  tolerate(() => {
     const dirFd = openSync(dir, 'r');
     try {
       fsyncSync(dirFd);
     } finally {
       closeSync(dirFd);
     }
-  } catch {
-    // Not every platform can sync a directory; the rename has already happened.
+  });
+}
+
+/** Durability extras that some environments forbid (Node's permission model, odd filesystems). */
+function tolerate(action: () => void): void {
+  try {
+    action();
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code !== 'ERR_ACCESS_DENIED' && code !== 'EPERM' && code !== 'EINVAL' && code !== 'ENOTSUP') throw err;
   }
 }
 
@@ -130,12 +140,15 @@ async function build(args: string[]): Promise<number> {
   if (!isRadius(maxRadius)) throw new Error(`--max-radius must be a multiple of ${RADIUS_STEP} from 0 to ${MAX_RADIUS}`);
 
   const exists = existsSync(out);
-  const table = new Map<string, [string, number]>();
-  if (exists) for (const e of readTable(readJson(out), out)) table.set(e.key, [e.zone, e.radius]);
+  const readCommitted = () => (existsSync(out) ? readTable(readJson(out), out) : []);
+  const table = new Map<string, [string, number]>(readCommitted().map((e) => [e.key, [e.zone, e.radius]]));
+  const builtWith = exists ? tableMaxRadius(readJson(out)) : undefined;
+  // Radii mean nothing without the cap they were probed under, so a different --max-radius re-resolves.
+  const reResolve = values.refresh || (builtWith !== undefined && builtWith !== maxRadius);
   const points = readPoints(input).map((p) => ({ ...p, key: keyOf(p.lat, p.lng) }));
   const added = points.filter((p) => !table.has(p.key));
   const todo = new Set(added.map((p) => p.key));
-  if (values.refresh) for (const key of table.keys()) todo.add(key);
+  if (reResolve) for (const key of table.keys()) todo.add(key);
 
   if (values.check) {
     if (exists && todo.size === 0) {
@@ -167,15 +180,26 @@ async function build(args: string[]): Promise<number> {
         if (zone !== keyZone) warnings.add(`warning: ${p.lat},${p.lng} is in ${zone}, but its key ${p.key} is in ${keyZone}; lookups there answer ${keyZone}`);
       }
     }
-    writeAtomically(target, formatTable(table));
+    // Another build may have written between our read and this write: merge with whatever is on disk now,
+    // keeping our freshly resolved entries, and confirm the file we leave behind holds all of them.
+    for (let attempt = 1; ; attempt++) {
+      for (const e of readCommitted()) if (!table.has(e.key)) table.set(e.key, [e.zone, e.radius]);
+      writeAtomically(target, formatTable(table, maxRadius));
+      const committed = new Map(readCommitted().map((e) => [e.key, `${e.zone},${e.radius}`]));
+      const lost = [...table].filter(([key, [zone, radius]]) => committed.get(key) !== `${zone},${radius}`);
+      if (lost.length === 0) break;
+      if (attempt === 5) throw new Error(`${out} kept changing underneath this build; run it again`);
+    }
     const changed = [...before].filter(([key, [zone, radius]]) => table.get(key)![0] !== zone || table.get(key)![1] !== radius).length;
-    console.log(printable(`wrote ${out}: ${plural(table.size, 'point')} (${todo.size} resolved${values.refresh ? `, ${changed} changed` : ''})`));
+    const detail = reResolve ? `, ${changed} changed` : '';
+    const what = reResolve && !values.refresh ? `re-resolved at --max-radius ${maxRadius}: ` : '';
+    console.log(printable(`${what}wrote ${out}: ${plural(table.size, 'point')} (${todo.size} resolved${detail})`));
   } else {
     console.log(`up to date: ${plural(table.size, 'point')}`);
   }
 
   // A radius-0 entry still answers its whole ~11m key cell, including any part of it across the border.
-  // With --max-radius 0 every entry is 0 by request, which says nothing about borders.
+  // A radius of 0 that came from --max-radius 0 says nothing about borders, so it earns no warning.
   for (const p of maxRadius === 0 ? [] : points) {
     const [zone, radius] = table.get(p.key)!;
     if (radius === 0) warnings.add(`warning: ${p.key} is within 10m of another zone; lookups that round to it answer ${zone}, even from across the border`);
@@ -230,8 +254,11 @@ async function main([command, ...args]: string[]): Promise<number> {
     if (command === 'check') return await check(args);
     throw new Error(USAGE);
   } catch (err) {
+    // Usage and parseArgs guidance are several lines of pinzone's own text, so keep their newlines.
+    // Everything else can carry a path or file content, where a newline would forge a log line.
     const message = err instanceof Error ? err.message : String(err);
-    console.error(message === USAGE ? `pinzone: ${USAGE}` : `pinzone: ${printable(message)}`);
+    const ours = message === USAGE || String((err as { code?: string }).code).startsWith('ERR_PARSE_ARGS');
+    console.error(`pinzone: ${printable(message, ours)}`);
     return 2;
   }
 }

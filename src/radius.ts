@@ -4,15 +4,19 @@ import { RADIUS_STEP } from './table.ts';
 export type Find = (lat: number, lng: number) => string | undefined;
 
 /**
- * The widest radius (a multiple of RADIUS_STEP, at most `max`) around a point inside which every probe
- * is in `zone`. Probes fill the disc on a ~10m lattice, so no piece of another zone wider than about
- * 14m can sit inside the radius unseen.
+ * The widest radius (a multiple of RADIUS_STEP, at most `max`) around a point that the probes vouch for.
+ *
+ * Probes fill the disc on a ~10m lattice, ring by ring. A ring only samples its circle at intervals, so a
+ * narrow lobe of another zone can cross it between two probes; the radius therefore stops a whole ring
+ * short of the frontier, and the ring beyond `max` is probed as well. Even so this is sampling, not proof:
+ * a piece of another zone smaller than the lattice's ~7m cover radius can sit inside the radius unseen.
  */
 export function safeRadius(find: Find, lat: number, lng: number, zone: string, max: number): number {
-  for (let ring = RADIUS_STEP; ring <= max; ring += RADIUS_STEP) {
+  if (max < RADIUS_STEP) return 0;
+  for (let ring = RADIUS_STEP; ring <= max + RADIUS_STEP; ring += RADIUS_STEP) {
     const bearings = Math.ceil((2 * Math.PI * ring) / RADIUS_STEP);
     for (let i = 0; i < bearings; i++) {
-      if (find(...destination(lat, lng, ring, (360 * i) / bearings)) !== zone) return ring - RADIUS_STEP;
+      if (find(...destination(lat, lng, ring, (360 * i) / bearings)) !== zone) return Math.max(0, ring - 2 * RADIUS_STEP);
     }
   }
   return Math.floor(max / RADIUS_STEP) * RADIUS_STEP;

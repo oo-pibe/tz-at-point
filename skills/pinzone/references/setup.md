@@ -7,7 +7,9 @@ npm install pinzone
 npm install --save-dev geo-tz
 ```
 
-geo-tz (about 70MB) is only for `build` and `check`. Nothing at runtime imports it.
+geo-tz (about 70MB) is only for `build` and `check`. Nothing at runtime imports it. pinzone needs Node 20.19+ or 22.12+, and is ESM: `require('pinzone')` works from Node 22.12 on.
+
+Importing from `pinzone/core` gives the same `createLookup` with no raster fallback, so the 73KB raster never enters your bundle. Points outside the table then answer `{ zone: null }`.
 
 ## The points file
 

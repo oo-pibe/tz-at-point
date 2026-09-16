@@ -1,4 +1,3 @@
-import tzlookup from '@photostructure/tz-lookup';
 import { metres, mod, RAD } from './geo.ts';
 import { keyOf, latLng } from './key.ts';
 import { isZone, readTable, type Entry } from './table.ts';
@@ -22,8 +21,9 @@ export type Lookup = (lat: unknown, lng: unknown) => Result;
 
 export interface Options {
   /**
-   * Answers points the table does not cover. Defaults to `@photostructure/tz-lookup` (a 73KB raster, no
-   * file reads). Pass `null` to answer only from the table. Answers that are not zone names are ignored.
+   * Answers points the table does not cover. Imported from `pinzone`, this defaults to
+   * `@photostructure/tz-lookup` (a 73KB raster, no file reads); imported from `pinzone/core`, it defaults
+   * to nothing, so the raster never enters your bundle. Answers that are not zone names are ignored.
    *
    * @example
    * const tableOnly = createLookup(table, { fallback: null });
@@ -60,6 +60,9 @@ export function* cellsReached({ lat, lng, radius }: Entry) {
 }
 
 /**
+ * Build a lookup that answers only from the table (`pinzone/core`). `pinzone` re-exports this with the
+ * raster fallback applied; import from here when you never want that 73KB in your bundle.
+ *
  * Build a lookup from a table made by `npx pinzone build points.json -o zones.json`.
  *
  * Call it once, at module scope, with the table imported as JSON so your bundler embeds it; the lookup
@@ -76,7 +79,7 @@ export function* cellsReached({ lat, lng, radius }: Entry) {
  * const { zone } = zoneAt(51.5561, -0.2794); // 'Europe/London'
  * const local = zone && new Intl.DateTimeFormat('en-GB', { timeZone: zone, timeStyle: 'short' }).format(new Date('2026-11-14T19:45:00Z')); // '19:45'
  */
-export function createLookup(table: unknown, { fallback = tzlookup }: Options = {}): Lookup {
+export function createLookup(table: unknown, { fallback = null }: Options = {}): Lookup {
   const exact = new Map<string, string>();
   const cells = new Map<number, Entry[]>();
   for (const entry of readTable(table)) {
