@@ -4,10 +4,9 @@
 
 [![ci](https://github.com/oo-pibe/tz-at-point/actions/workflows/ci.yml/badge.svg)](https://github.com/oo-pibe/tz-at-point/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/tz-at-point)](https://www.npmjs.com/package/tz-at-point)
-[![install size](https://img.shields.io/bundlephobia/minzip/tz-at-point)](https://bundlephobia.com/package/tz-at-point)
-[![license](https://img.shields.io/npm/l/tz-at-point)](LICENSE)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-Resolve your points once, offline, against the real timezone boundaries. Commit the answers as a small JSON table. At runtime `createLookup` reads that table, then a nearby entry, then a compact raster, and never touches the filesystem, which is what makes it safe inside a bundled serverless function.
+Timezone lookup from latitude and longitude, resolved offline at build time. You point the CLI at your own coordinates, it resolves each one against the real timezone boundaries with geo-tz, and commits the answers as a small JSON table. At runtime `createLookup` reads that table, then a nearby entry, then a compact raster, and never touches the filesystem, which is what makes it safe inside a bundled serverless function.
 
 ```ts
 import { createLookup } from 'tz-at-point';
@@ -67,17 +66,7 @@ If that count is 0, use the raster on its own and skip this package.
 
 ## How it works
 
-```mermaid
-flowchart LR
-  B["npx tz-at-point build<br/>(geo-tz, offline)"] --> Z[("zones.json<br/>committed")]
-  Z --> L["createLookup(table)"]
-  Q(["lat, lng"]) --> L
-  L --> E{"exact key?"}
-  E -- yes --> T["zone · table"]
-  E -- no --> R{"inside an entry's<br/>safe radius?"}
-  R -- yes --> N["zone · table-near"]
-  R -- no --> F["zone · raster"]
-```
+<img src="https://raw.githubusercontent.com/oo-pibe/tz-at-point/main/docs/flow.svg" alt="Build time: points.csv plus tz-at-point build, using geo-tz polygons and 10m probes, produce zones.json, committed to your repo; geo-tz never ships. Runtime: a lat/lng is answered by an exact key (source: table), then the nearest entry within its radius (source: table-near), then the raster fallback (source: raster, approximate), with no file reads." width="920">
 
 Build resolves each point with geo-tz, then probes the ground around it on a ~10m lattice to find how far that zone holds. Those two facts, the zone and that radius, are all the runtime needs.
 

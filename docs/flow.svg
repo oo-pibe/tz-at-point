@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 318" width="920" height="318" role="img" aria-label="Build time: your points plus geo-tz produce zones.json, which you commit. Runtime: a coordinate is answered from the table, then a nearby entry, then the raster, with no file reads.">
+  <style>
+    :root { color-scheme: light dark; }
+    .ink   { fill: #1f2328; }
+    .muted { fill: #59636e; }
+    .panel { fill: #f6f8fa; stroke: #d1d9e0; }
+    .card  { fill: #ffffff; stroke: #d1d9e0; }
+    .accent{ fill: #0969da; }
+    .cardA { fill: #ddf4ff; stroke: #54aeff; }
+    .line  { stroke: #8c959f; }
+    @media (prefers-color-scheme: dark) {
+      .ink   { fill: #e6edf3; }
+      .muted { fill: #9198a1; }
+      .panel { fill: #0d1117; stroke: #3d444d; }
+      .card  { fill: #151b23; stroke: #3d444d; }
+      .accent{ fill: #4493f8; }
+      .cardA { fill: #121d2f; stroke: #1f6feb; }
+      .line  { stroke: #6e7681; }
+    }
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+    .t   { font-size: 13px; }
+    .sm  { font-size: 11.5px; }
+    .lbl { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#8c959f"/>
+    </marker>
+  </defs>
+
+  <!-- build time -->
+  <rect class="panel" x="8" y="26" width="904" height="108" rx="10" stroke-width="1"/>
+  <text class="lbl muted" x="26" y="18">Build time · your machine or CI</text>
+
+  <rect class="card" x="28" y="52" width="150" height="56" rx="8" stroke-width="1"/>
+  <text class="mono t ink" x="103" y="76" text-anchor="middle">points.csv</text>
+  <text class="sm muted" x="103" y="94" text-anchor="middle">your coordinates</text>
+
+  <line class="line" x1="184" y1="80" x2="236" y2="80" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <rect class="cardA" x="242" y="52" width="210" height="56" rx="8" stroke-width="1"/>
+  <text class="mono t accent" x="347" y="76" text-anchor="middle">tz-at-point build</text>
+  <text class="sm muted" x="347" y="94" text-anchor="middle">geo-tz polygons · 10m probes</text>
+
+  <line class="line" x1="458" y1="80" x2="510" y2="80" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <rect class="card" x="516" y="52" width="180" height="56" rx="8" stroke-width="1"/>
+  <text class="mono t ink" x="606" y="76" text-anchor="middle">zones.json</text>
+  <text class="sm muted" x="606" y="94" text-anchor="middle">committed to your repo</text>
+
+  <text class="sm muted" x="716" y="76">geo-tz stays here:</text>
+  <text class="sm muted" x="716" y="94">it never ships.</text>
+
+  <!-- hand-off -->
+  <path class="line" d="M606 112 L606 150 L606 168" stroke-width="1.5" fill="none" marker-end="url(#a)" stroke-dasharray="4 4"/>
+  <text class="sm muted" x="616" y="146">imported as JSON, so your bundler embeds it</text>
+
+  <!-- runtime -->
+  <rect class="panel" x="8" y="182" width="904" height="126" rx="10" stroke-width="1"/>
+  <text class="lbl muted" x="26" y="174">Runtime · your function, no file reads</text>
+
+  <rect class="card" x="28" y="212" width="130" height="56" rx="8" stroke-width="1"/>
+  <text class="mono t ink" x="93" y="236" text-anchor="middle">lat, lng</text>
+  <text class="sm muted" x="93" y="254" text-anchor="middle">a request</text>
+
+  <line class="line" x1="164" y1="240" x2="212" y2="240" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <rect class="cardA" x="218" y="212" width="170" height="56" rx="8" stroke-width="1"/>
+  <text class="mono t accent" x="303" y="236" text-anchor="middle">exact key</text>
+  <text class="sm muted" x="303" y="254" text-anchor="middle">source: table</text>
+
+  <line class="line" x1="394" y1="240" x2="438" y2="240" stroke-width="1.5" marker-end="url(#a)"/>
+  <text class="sm muted" x="416" y="232" text-anchor="middle">miss</text>
+
+  <rect class="cardA" x="444" y="212" width="190" height="56" rx="8" stroke-width="1"/>
+  <text class="mono t accent" x="539" y="236" text-anchor="middle">nearest within radius</text>
+  <text class="sm muted" x="539" y="254" text-anchor="middle">source: table-near</text>
+
+  <line class="line" x1="640" y1="240" x2="684" y2="240" stroke-width="1.5" marker-end="url(#a)"/>
+  <text class="sm muted" x="662" y="232" text-anchor="middle">miss</text>
+
+  <rect class="card" x="690" y="212" width="200" height="56" rx="8" stroke-width="1"/>
+  <text class="mono t ink" x="790" y="236" text-anchor="middle">raster fallback</text>
+  <text class="sm muted" x="790" y="254" text-anchor="middle">source: raster · approximate</text>
+
+  <text class="sm muted" x="28" y="292">Exact where you resolved it, approximate everywhere else, and nothing on disk either way.</text>
+</svg>
