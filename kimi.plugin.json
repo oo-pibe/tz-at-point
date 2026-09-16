@@ -1,5 +1,5 @@
 {
-  "name": "pinzone",
+  "name": "tz-at-point",
   "description": "The IANA timezone at a coordinate, exact at the points you care about, with no file reads at runtime. Built for serverless.",
   "skills": "./skills/"
 }

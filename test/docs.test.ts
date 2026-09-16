@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 
 const root = new URL('..', import.meta.url).pathname;
 const read = (path: string) => readFileSync(join(root, path), 'utf8');
-const SKILL = 'skills/pinzone';
+const SKILL = 'skills/tz-at-point';
 
 /** Minimal frontmatter reader: `key: value` lines between the opening `---` lines. */
 function frontmatter(markdown: string): Record<string, string> {
@@ -26,7 +26,7 @@ test('SKILL.md frontmatter uses only shared Agent Skills fields, within their li
   const skill = read(`${SKILL}/SKILL.md`);
   const fm = frontmatter(skill);
   assert.deepEqual(Object.keys(fm).sort(), ['description', 'license', 'name']);
-  assert.equal(fm.name, 'pinzone');
+  assert.equal(fm.name, 'tz-at-point');
   assert.ok(fm.description.length > 100 && fm.description.length <= 1024, `description is ${fm.description.length} characters`);
   assert.ok(skill.split('\n').length <= 250, `SKILL.md is ${skill.split('\n').length} lines`);
 });
@@ -41,7 +41,7 @@ test('every relative link in the docs resolves', () => {
 
 /** Every message a user can see, as fragments. Each must still be in src/ and be explained in references/cli.md. */
 const MESSAGES = [
-  'up to date:', 'missing from', 're-resolved at --max-radius', 'kept changing underneath this build', 'does not exist yet', 'run: npx pinzone build', 'wrote ', 'resolved', 'changed',
+  'up to date:', 'missing from', 'built with geo-tz', 're-resolved at --max-radius', 'kept changing underneath this build', 'does not exist yet', 'run: npx tz-at-point build', 'wrote ', 'resolved', 'changed',
   'is within 10m of another zone', 'lookups that round to it answer', 'but its key', 'lookups there answer',
   'table says', 'polygons say', 'reaches another zone', "not a zone this runtime's Intl accepts", 'ok:',
   'the polygons', 'fix: rebuild the table with --refresh', 'fix: update Node', 'this command needs geo-tz 8 or later',
@@ -78,11 +78,11 @@ test('the plugin manifests agree with each other and with package.json', () => {
   const claude = JSON.parse(read('.claude-plugin/plugin.json'));
   const market = JSON.parse(read('.claude-plugin/marketplace.json'));
   const kimi = JSON.parse(read('kimi.plugin.json'));
-  assert.equal(claude.name, 'pinzone');
+  assert.equal(claude.name, 'tz-at-point');
   assert.equal(claude.version, pkg.version, 'bump .claude-plugin/plugin.json with package.json: plugin users only update when it changes');
-  assert.equal(market.name, 'pinzone');
-  assert.deepEqual(market.plugins.map((p: { name: string; source: string }) => [p.name, p.source]), [['pinzone', './']]);
-  assert.equal(kimi.name, 'pinzone');
+  assert.equal(market.name, 'tz-at-point');
+  assert.deepEqual(market.plugins.map((p: { name: string; source: string }) => [p.name, p.source]), [['tz-at-point', './']]);
+  assert.equal(kimi.name, 'tz-at-point');
   assert.equal(kimi.skills, './skills/');
   for (const description of [claude.description, market.plugins[0].description, kimi.description]) assert.equal(description, pkg.description);
 });
@@ -92,7 +92,7 @@ test('the npm package ships the skill and llms.txt', () => {
   assert.ok(files.includes('skills') && files.includes('llms.txt'), JSON.stringify(files));
 });
 
-test('package.json is importable, and pinzone/core exists for table-only consumers', () => {
+test('package.json is importable, and tz-at-point/core exists for table-only consumers', () => {
   const { exports: map, engines, peerDependencies } = JSON.parse(read('package.json'));
   assert.equal(map['./package.json'], './package.json');
   assert.equal(map['./core'].default, './dist/lookup.js');

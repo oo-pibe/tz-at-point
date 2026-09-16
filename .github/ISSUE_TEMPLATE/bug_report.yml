@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in pinzone behaves differently than documented
+description: Something in tz-at-point behaves differently than documented
 labels: [bug]
 body:
   - type: textarea
@@ -8,7 +8,7 @@ body:
       label: What happened
       description: What you ran, what you expected, what you got. Paste the exact command and output.
       placeholder: |
-        $ npx pinzone build points.csv -o zones.json
+        $ npx tz-at-point build points.csv -o zones.json
         ...
     validations:
       required: true
@@ -16,12 +16,12 @@ body:
     id: versions
     attributes:
       label: Versions
-      description: 'Run: `node -v && npm ls pinzone geo-tz`'
+      description: 'Run: `node -v && npm ls tz-at-point geo-tz`'
       placeholder: |
         v22.12.0
         my-app@1.0.0
         ├── geo-tz@8.1.8
-        └── pinzone@0.1.0
+        └── tz-at-point@0.1.0
     validations:
       required: true
   - type: textarea

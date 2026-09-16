@@ -9,12 +9,12 @@ import { parseArgs } from 'node:util';
 import { keyOf, parseKey } from './key.ts';
 import { pointsFromCsv, pointsFromJson, type Point } from './points.ts';
 import { resolve, type Find } from './radius.ts';
-import { formatTable, isRadius, MAX_RADIUS, RADIUS_STEP, readTable, tableMaxRadius } from './table.ts';
+import { formatTable, isRadius, MAX_RADIUS, RADIUS_STEP, readTable, tableGeoTz, tableMaxRadius } from './table.ts';
 import { printable } from './text.ts';
 
 const USAGE = `usage:
-  pinzone build <points.json|points.csv> -o <zones.json> [--check | --refresh] [--max-radius 250]
-  pinzone check <zones.json>`;
+  tz-at-point build <points.json|points.csv> -o <zones.json> [--check | --refresh] [--max-radius 250]
+  tz-at-point check <zones.json>`;
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const verb = (n: number, singular: string, plural_: string) => (n === 1 ? singular : plural_);
@@ -26,6 +26,17 @@ const shellQuote = (path: string) => (/^[\w./-]+$/.test(path) ? path : `'${path.
 function printCapped(lines: string[], print = console.log): void {
   for (const line of lines.slice(0, 20)) print(printable(line));
   if (lines.length > 20) print(`...and ${lines.length - 20} more`);
+}
+
+/** The installed geo-tz version, recorded in the table so a boundary bump shows up in the diff. */
+function geoTzVersion(): string | undefined {
+  try {
+    // geo-tz does not export ./package.json, so resolve the dataset entry and walk up out of dist/.
+    const entry = new URL(import.meta.resolve('geo-tz/all'));
+    return JSON.parse(readFileSync(new URL('../package.json', entry), 'utf8')).version;
+  } catch {
+    return undefined;
+  }
 }
 
 async function loadFind(): Promise<Find> {
@@ -158,16 +169,18 @@ async function build(args: string[]): Promise<number> {
     console.log(printable(exists ? `${plural(todo.size, 'point')} missing from ${out}:` : `${out} does not exist yet`));
     printCapped([...todo].sort().map((key) => `  ${key}`));
     const sameRadius = values['max-radius'] === '250' ? '' : ` --max-radius ${maxRadius}`;
-    console.log(printable(`run: npx pinzone build ${shellQuote(input)} -o ${shellQuote(out)}${sameRadius}`));
+    console.log(printable(`run: npx tz-at-point build ${shellQuote(input)} -o ${shellQuote(out)}${sameRadius}`));
     return 1;
   }
 
   const warnings = new Set<string>();
+  let geoTz: string | undefined;
   if (todo.size > 0 || !exists) {
     const target = writableTarget(out);
     const before = new Map(table);
     if (todo.size > 0) {
       const find = await loadFind();
+      geoTz = geoTzVersion();
       for (const key of todo) {
         const [zone, radius] = resolve(find, ...parseKey(key), maxRadius);
         if (!zone) throw new Error(`no zone found for ${key}`);
@@ -184,7 +197,7 @@ async function build(args: string[]): Promise<number> {
     // keeping our freshly resolved entries, and confirm the file we leave behind holds all of them.
     for (let attempt = 1; ; attempt++) {
       for (const e of readCommitted()) if (!table.has(e.key)) table.set(e.key, [e.zone, e.radius]);
-      writeAtomically(target, formatTable(table, maxRadius));
+      writeAtomically(target, formatTable(table, maxRadius, geoTz ?? tableGeoTz(exists ? readJson(out) : undefined)));
       const committed = new Map(readCommitted().map((e) => [e.key, `${e.zone},${e.radius}`]));
       const lost = [...table].filter(([key, [zone, radius]]) => committed.get(key) !== `${zone},${radius}`);
       if (lost.length === 0) break;
@@ -216,8 +229,16 @@ async function check(args: string[]): Promise<number> {
   }
   if (positionals.length !== 1) throw new Error(USAGE);
   const [file] = positionals;
-  const entries = readTable(readJson(file), file);
+  const raw = readJson(file);
+  const entries = readTable(raw, file);
   const find = await loadFind();
+  const builtWith = tableGeoTz(raw);
+  const installed = geoTzVersion();
+  if (builtWith && installed && builtWith !== installed) {
+    console.log(`built with geo-tz ${builtWith}, checked against ${installed}`);
+  } else if (builtWith) {
+    console.log(`built with geo-tz ${builtWith}`);
+  }
 
   const unknownZones: string[] = [];
   for (const zone of new Set(entries.map((e) => e.zone))) {
@@ -254,11 +275,11 @@ async function main([command, ...args]: string[]): Promise<number> {
     if (command === 'check') return await check(args);
     throw new Error(USAGE);
   } catch (err) {
-    // Usage and parseArgs guidance are several lines of pinzone's own text, so keep their newlines.
+    // Usage and parseArgs guidance are several lines of tz-at-point's own text, so keep their newlines.
     // Everything else can carry a path or file content, where a newline would forge a log line.
     const message = err instanceof Error ? err.message : String(err);
     const ours = message === USAGE || String((err as { code?: string }).code).startsWith('ERR_PARSE_ARGS');
-    console.error(`pinzone: ${printable(message, ours)}`);
+    console.error(`tz-at-point: ${printable(message, ours)}`);
     return 2;
   }
 }

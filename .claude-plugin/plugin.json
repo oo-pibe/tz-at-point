@@ -1,13 +1,13 @@
 {
-  "name": "pinzone",
+  "name": "tz-at-point",
   "version": "0.1.0",
   "description": "The IANA timezone at a coordinate, exact at the points you care about, with no file reads at runtime. Built for serverless.",
   "author": {
     "name": "oo-pibe",
     "url": "https://github.com/oo-pibe"
   },
-  "homepage": "https://github.com/oo-pibe/pinzone#readme",
-  "repository": "https://github.com/oo-pibe/pinzone",
+  "homepage": "https://github.com/oo-pibe/tz-at-point#readme",
+  "repository": "https://github.com/oo-pibe/tz-at-point",
   "license": "MIT",
   "keywords": [
     "timezone",

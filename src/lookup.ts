@@ -21,8 +21,8 @@ export type Lookup = (lat: unknown, lng: unknown) => Result;
 
 export interface Options {
   /**
-   * Answers points the table does not cover. Imported from `pinzone`, this defaults to
-   * `@photostructure/tz-lookup` (a 73KB raster, no file reads); imported from `pinzone/core`, it defaults
+   * Answers points the table does not cover. Imported from `tz-at-point`, this defaults to
+   * `@photostructure/tz-lookup` (a 73KB raster, no file reads); imported from `tz-at-point/core`, it defaults
    * to nothing, so the raster never enters your bundle. Answers that are not zone names are ignored.
    *
    * @example
@@ -60,10 +60,10 @@ export function* cellsReached({ lat, lng, radius }: Entry) {
 }
 
 /**
- * Build a lookup that answers only from the table (`pinzone/core`). `pinzone` re-exports this with the
+ * Build a lookup that answers only from the table (`tz-at-point/core`). `tz-at-point` re-exports this with the
  * raster fallback applied; import from here when you never want that 73KB in your bundle.
  *
- * Build a lookup from a table made by `npx pinzone build points.json -o zones.json`.
+ * Build a lookup from a table made by `npx tz-at-point build points.json -o zones.json`.
  *
  * Call it once, at module scope, with the table imported as JSON so your bundler embeds it; the lookup
  * then reads no files, which is what makes it safe in serverless functions. The table is validated here
@@ -71,7 +71,7 @@ export function* cellsReached({ lat, lng, radius }: Entry) {
  * startup. The returned function never throws.
  *
  * @example
- * import { createLookup } from 'pinzone';
+ * import { createLookup } from 'tz-at-point';
  * import table from './zones.json' with { type: 'json' };
  *
  * const zoneAt = createLookup(table);

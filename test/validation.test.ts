@@ -9,7 +9,7 @@ import { metres } from '../src/geo.ts';
 const CLI = new URL('../src/cli.ts', import.meta.url).pathname;
 const run = (...args: string[]) => spawnSync(process.execPath, [CLI, ...args], { encoding: 'utf8' });
 function workspace(points: unknown) {
-  const dir = mkdtempSync(join(tmpdir(), 'pinzone-mut3-'));
+  const dir = mkdtempSync(join(tmpdir(), 'tz-at-point-mut3-'));
   writeFileSync(join(dir, 'points.json'), JSON.stringify(points));
   return { dir, points: join(dir, 'points.json'), out: join(dir, 'zones.json') };
 }
@@ -26,12 +26,12 @@ test('exactly twenty missing keys are all listed, with nothing left over', () =>
 // cli-11
 test('an unwritable output directory is refused by name, before any point is resolved', () => {
   const w = workspace([[51.5561, -0.2794]]);
-  const ro = mkdtempSync(join(tmpdir(), 'pinzone-ro-'));
+  const ro = mkdtempSync(join(tmpdir(), 'tz-at-point-ro-'));
   chmodSync(ro, 0o555);
   try {
     const r = run('build', w.points, '-o', join(ro, 'zones.json'));
     assert.equal(r.status, 2);
-    assert.equal(r.stderr.trim(), `pinzone: EACCES: permission denied, access '${ro}'`);
+    assert.equal(r.stderr.trim(), `tz-at-point: EACCES: permission denied, access '${ro}'`);
   } finally {
     chmodSync(ro, 0o755);
   }

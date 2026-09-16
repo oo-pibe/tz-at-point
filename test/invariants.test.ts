@@ -14,7 +14,7 @@ import { pointsFromCsv } from '../src/points.ts';
 const CLI = new URL('../src/cli.ts', import.meta.url).pathname;
 const run = (...args: string[]) => spawnSync(process.execPath, [CLI, ...args], { encoding: 'utf8' });
 function workspace(points: unknown, name = 'points.json') {
-  const dir = mkdtempSync(join(tmpdir(), 'pinzone-mut-'));
+  const dir = mkdtempSync(join(tmpdir(), 'tz-at-point-mut-'));
   writeFileSync(join(dir, name), typeof points === 'string' ? points : JSON.stringify(points));
   return { dir, points: join(dir, name), out: join(dir, 'zones.json') };
 }
@@ -194,7 +194,7 @@ test('the suggested rebuild command is shell-safe and keeps --max-radius', () =>
   assert.match(line, /'/, line); // the space in the path forces quoting
   assert.ok(!/(^|[^\\])'[^']*'[^']*'[^']*$/.test(line) || line.includes(`'\\''`), line);
   // the printed command actually runs
-  const echoed = spawnSync('/bin/sh', ['-c', `set -- ${line.replace(/^run: npx pinzone build /, '')}; echo "$1"`], { encoding: 'utf8' });
+  const echoed = spawnSync('/bin/sh', ['-c', `set -- ${line.replace(/^run: npx tz-at-point build /, '')}; echo "$1"`], { encoding: 'utf8' });
   assert.equal(echoed.stdout.trim(), w.points);
 });
 

@@ -3,7 +3,7 @@
 Bug reports are welcome, especially ones with a coordinate that gets the wrong answer.
 
 ```sh
-git clone https://github.com/oo-pibe/pinzone && cd pinzone
+git clone https://github.com/oo-pibe/tz-at-point && cd tz-at-point
 npm install
 npm test        # node:test, ~7s, needs Node 22.18+ to run the TypeScript directly
 npx tsc         # typecheck
@@ -15,5 +15,5 @@ A few house rules:
 
 - Write the failing test first. Every fix in this repo's history has one.
 - The lookup path stays free of Node APIs and file reads. `test/bundle.test.ts` enforces it by running a bundled lookup with file reads denied.
-- Changing a CLI flag, a printed message or a public export means updating `skills/pinzone/references/`. `test/docs.test.ts` fails until you do.
+- Changing a CLI flag, a printed message or a public export means updating `skills/tz-at-point/references/`. `test/docs.test.ts` fails until you do.
 - The table format (v1) is frozen. Anything that would make an existing `zones.json` invalid needs a new version.

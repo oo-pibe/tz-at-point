@@ -116,7 +116,7 @@ test('an entry of any radius reaches only a handful of grid cells, even at the p
 test('a custom fallback cannot hand back something that is not a zone name', () => {
   assert.deepEqual(createLookup(table, { fallback: () => '<script>' })(48.85, 2.35), { zone: null, source: null });
 });
-test('pinzone/core answers only from the table, so the raster never reaches a bundle', () => {
+test('tz-at-point/core answers only from the table, so the raster never reaches a bundle', () => {
   assert.deepEqual(coreLookup(table)(51.5561, -0.2794), { zone: 'Europe/London', source: 'table' });
   assert.deepEqual(coreLookup(table)(40.4168, -3.7038), { zone: null, source: null });
   assert.equal(createLookup(table)(40.4168, -3.7038).source, 'raster'); // the main entry keeps the fallback

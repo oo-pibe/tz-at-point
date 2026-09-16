@@ -1,11 +1,11 @@
 /**
- * pinzone: the IANA timezone at a coordinate, exact at the points you care about, with no file reads at
+ * tz-at-point: the IANA timezone at a coordinate, exact at the points you care about, with no file reads at
  * runtime.
  *
- * Workflow: list your points, run `npx pinzone build points.json -o zones.json` (needs geo-tz as a dev
+ * Workflow: list your points, run `npx tz-at-point build points.json -o zones.json` (needs geo-tz as a dev
  * dependency), commit zones.json, import it as JSON and call `createLookup(table)` once.
  *
- * Coding agents: the full guide is in this package at `skills/pinzone/SKILL.md`.
+ * Coding agents: the full guide is in this package at `skills/tz-at-point/SKILL.md`.
  *
  * @packageDocumentation
  */
@@ -14,7 +14,7 @@ import { createLookup as fromTable } from './lookup.ts';
 import type { Lookup, Options } from './lookup.ts';
 
 /**
- * Build a lookup from a table made by `npx pinzone build points.json -o zones.json`.
+ * Build a lookup from a table made by `npx tz-at-point build points.json -o zones.json`.
  *
  * Call it once, at module scope, with the table imported as JSON so your bundler embeds it; the lookup
  * then reads no files, which is what makes it safe in serverless functions. Points the table doesn't
@@ -23,7 +23,7 @@ import type { Lookup, Options } from './lookup.ts';
  * startup. The returned function never throws.
  *
  * @example
- * import { createLookup } from 'pinzone';
+ * import { createLookup } from 'tz-at-point';
  * import table from './zones.json' with { type: 'json' };
  *
  * const zoneAt = createLookup(table);

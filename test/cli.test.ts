@@ -10,7 +10,7 @@ const run = (...args: string[]) => spawnSync(process.execPath, [CLI, ...args], {
 
 /** A temp dir holding `points.json` (or `name`) with the given content; returns paths inside it. */
 function workspace(points: unknown, name = 'points.json') {
-  const dir = mkdtempSync(join(tmpdir(), 'pinzone-'));
+  const dir = mkdtempSync(join(tmpdir(), 'tz-at-point-'));
   writeFileSync(join(dir, name), typeof points === 'string' ? points : JSON.stringify(points));
   return { dir, points: join(dir, name), out: join(dir, 'zones.json') };
 }
@@ -137,7 +137,7 @@ test('usage errors exit 2 with one message, not a stack trace', () => {
     ['build', 'x.json', '-o', 'y.json', '--check', '--refresh'], ['build', 'missing.json', '-o', 'y.json'], ['check', 'x.json', '--bogus']]) {
     const r = run(...args);
     assert.equal(r.status, 2, args.join(' '));
-    assert.match(r.stderr, /^pinzone: /, args.join(' '));
+    assert.match(r.stderr, /^tz-at-point: /, args.join(' '));
     assert.doesNotMatch(r.stderr, /\n\s+at /, args.join(' '));
   }
 });
@@ -195,7 +195,7 @@ test('paths and counts in --check output are escaped and read correctly', () => 
   assert.equal(r.status, 1);
   assert.equal(r.stdout.split('\n').length, 4, r.stdout); // heading, key, run line, trailing newline
   assert.doesNotMatch(r.stdout, /\u00f6/);
-  assert.match(r.stdout, /run: npx pinzone build/);
+  assert.match(r.stdout, /run: npx tz-at-point build/);
 });
 
 test('--max-radius 0 stores radius 0 without claiming every point is on a border', () => {
@@ -243,6 +243,24 @@ test('concurrent builds keep every entry each of them reported writing', () => {
   `], { encoding: 'utf8' });
   assert.equal(parallel.status, 0, parallel.stderr);
   assert.deepEqual(Object.keys(readOut(w.out)).sort(), ['35.6762,139.6503', '40.4168,-3.7038', '51.5561,-0.2794']);
+});
+
+test('the table records the geo-tz that produced it, and check reports what is installed now', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  assert.equal(run('build', w.points, '-o', w.out).status, 0);
+  const installed = JSON.parse(readFileSync(new URL('../node_modules/geo-tz/package.json', import.meta.url), 'utf8')).version;
+  assert.equal(JSON.parse(readFileSync(w.out, 'utf8')).geoTz, installed);
+
+  const ok = run('check', w.out);
+  assert.equal(ok.status, 0, ok.stdout);
+  assert.match(ok.stdout, new RegExp(`built with geo-tz ${installed.replace(/\./g, '\\.')}`));
+
+  const table = JSON.parse(readFileSync(w.out, 'utf8'));
+  table.geoTz = '8.0.0';
+  writeFileSync(w.out, JSON.stringify(table));
+  const drifted = run('check', w.out);
+  assert.equal(drifted.status, 0, 'a newer geo-tz is not a failure on its own');
+  assert.match(drifted.stdout, /built with geo-tz 8\.0\.0, checked against/);
 });
 
 test('the table records the --max-radius it was built with, and a later build re-resolves rather than mixing', () => {

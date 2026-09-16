@@ -2,8 +2,8 @@ import { keyOf, latLng, parseKey } from './key.ts';
 import { quote } from './text.ts';
 
 /**
- * The table `pinzone build` writes: point key → [IANA zone, safe radius in metres]. Commit it and don't
- * edit it by hand; `pinzone build` adds points and `pinzone build --refresh` re-resolves them.
+ * The table `tz-at-point build` writes: point key → [IANA zone, safe radius in metres]. Commit it and don't
+ * edit it by hand; `tz-at-point build` adds points and `tz-at-point build --refresh` re-resolves them.
  *
  * @example
  * { "v": 1, "points": { "51.5561,-0.2794": ["Europe/London", 250], "51.4394,4.9275": ["Europe/Amsterdam", 0] } }
@@ -12,6 +12,8 @@ export interface Table {
   v: 1;
   /** The `--max-radius` the table was built with, so a later build can tell its radii apart from probed ones. */
   maxRadius?: number;
+  /** The geo-tz version whose boundaries produced these zones, so a data bump is visible in the diff. */
+  geoTz?: string;
   points: Record<string, [zone: string, radius: number]>;
 }
 
@@ -40,7 +42,7 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> => {
 };
 
 /** Validate a table and return its entries. Throws a TypeError, prefixed with `name`, naming the first problem. */
-export function readTable(table: unknown, name = 'pinzone table'): Entry[] {
+export function readTable(table: unknown, name = 'tz-at-point table'): Entry[] {
   if (!isPlainObject(table)) throw new TypeError(`${name}: must be a plain object`);
   // `import * as table from './zones.json'` gives a module namespace, not the table.
   if ((table as { [Symbol.toStringTag]?: string })[Symbol.toStringTag] === 'Module') {
@@ -68,10 +70,17 @@ export function readTable(table: unknown, name = 'pinzone table'): Entry[] {
 }
 
 /** Serialise a table with sorted keys, one entry per line, so diffs stay readable. */
-export function formatTable(points: Map<string, [string, number]>, maxRadius: number): string {
+export function formatTable(points: Map<string, [string, number]>, maxRadius: number, geoTz?: string): string {
   const lines = [...points.keys()].sort().map((key) => `    ${JSON.stringify(key)}: ${JSON.stringify(points.get(key))}`);
-  return `{\n  "v": 1,\n  "maxRadius": ${maxRadius},\n  "points": {\n${lines.join(',\n')}${lines.length ? '\n' : ''}  }\n}\n`;
+  const lineage = geoTz === undefined ? '' : `  "geoTz": ${JSON.stringify(geoTz)},\n`;
+  return `{\n  "v": 1,\n${lineage}  "maxRadius": ${maxRadius},\n  "points": {\n${lines.join(',\n')}${lines.length ? '\n' : ''}  }\n}\n`;
 }
+
+/** The geo-tz version a table was built with, if it recorded one. */
+export const tableGeoTz = (table: unknown): string | undefined => {
+  const value = (table as { geoTz?: unknown } | null)?.geoTz;
+  return typeof value === 'string' && /^[\w.+-]{1,32}$/.test(value) ? value : undefined;
+};
 
 /** The `--max-radius` a table was built with, if it recorded one. */
 export const tableMaxRadius = (table: unknown): number | undefined => {

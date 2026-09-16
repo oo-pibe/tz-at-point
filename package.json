@@ -1,5 +1,5 @@
 {
-  "name": "pinzone",
+  "name": "tz-at-point",
   "version": "0.1.0",
   "description": "The IANA timezone at a coordinate, exact at the points you care about, with no file reads at runtime. Built for serverless.",
   "keywords": [
@@ -17,11 +17,11 @@
   "author": "oo-pibe",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/oo-pibe/pinzone.git"
+    "url": "git+https://github.com/oo-pibe/tz-at-point.git"
   },
-  "homepage": "https://github.com/oo-pibe/pinzone#readme",
+  "homepage": "https://github.com/oo-pibe/tz-at-point#readme",
   "bugs": {
-    "url": "https://github.com/oo-pibe/pinzone/issues"
+    "url": "https://github.com/oo-pibe/tz-at-point/issues"
   },
   "type": "module",
   "types": "./dist/index.d.ts",
@@ -37,7 +37,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "pinzone": "dist/cli.js"
+    "tz-at-point": "dist/cli.js"
   },
   "files": [
     "dist",

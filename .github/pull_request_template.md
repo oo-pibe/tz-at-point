@@ -6,4 +6,4 @@
 
 - [ ] `npm test` passes
 - [ ] `npx tsc` passes
-- [ ] If a CLI flag, printed message or public export changed, `skills/pinzone/references/` is updated (`test/docs.test.ts` enforces this)
+- [ ] If a CLI flag, printed message or public export changed, `skills/tz-at-point/references/` is updated (`test/docs.test.ts` enforces this)

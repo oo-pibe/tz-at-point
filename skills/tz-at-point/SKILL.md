@@ -1,16 +1,16 @@
 ---
-name: pinzone
-description: Use when a JavaScript or TypeScript project needs the IANA timezone or local time at latitude/longitude coordinates (venues, stadiums, stores, airports), when geo-tz fails with ENOENT on missing data files in a bundled or serverless function (Vercel, AWS Lambda, Netlify, Next.js), when a raster timezone lookup such as tz-lookup is an hour wrong near a border, or when working with the pinzone package, its zones.json table, or output from `pinzone build` or `pinzone check`.
+name: tz-at-point
+description: Use when a JavaScript or TypeScript project needs the IANA timezone or local time at latitude/longitude coordinates (venues, stadiums, stores, airports), when geo-tz fails with ENOENT on missing data files in a bundled or serverless function (Vercel, AWS Lambda, Netlify, Next.js), when a raster timezone lookup such as tz-lookup is an hour wrong near a border, or when working with the tz-at-point package, its zones.json table, or output from `tz-at-point build` or `tz-at-point check`.
 license: MIT
 ---
 
-# pinzone
+# tz-at-point
 
-pinzone answers the IANA timezone at a coordinate. `pinzone build` resolves your points offline against geo-tz's polygons into a small `zones.json`. At runtime, `createLookup(table)` answers from that table, then from the nearest table entry within its safe radius, then from a bundled raster for everything else. The runtime reads no files.
+tz-at-point answers the IANA timezone at a coordinate. `tz-at-point build` resolves your points offline against geo-tz's polygons into a small `zones.json`. At runtime, `createLookup(table)` answers from that table, then from the nearest table entry within its safe radius, then from a bundled raster for everything else. The runtime reads no files.
 
-Everything below is verified against the package. You don't need to read pinzone's `dist/` source: the answers are here and in `references/`.
+Everything below is verified against the package. You don't need to read tz-at-point's `dist/` source: the answers are here and in `references/`.
 
-pinzone answers with a zone name, never a UTC offset. Get the offset for a given moment from `Intl.DateTimeFormat` with that `timeZone`.
+tz-at-point answers with a zone name, never a UTC offset. Get the offset for a given moment from `Intl.DateTimeFormat` with that `timeZone`.
 
 ## When not to use it
 
@@ -22,21 +22,21 @@ pinzone answers with a zone name, never a UTC offset. Get the offset for a given
 Copy this and tick it off.
 
 ```
-- [ ] npm install pinzone && npm install --save-dev geo-tz   (this also moves geo-tz out of dependencies)
+- [ ] npm install tz-at-point && npm install --save-dev geo-tz   (this also moves geo-tz out of dependencies)
 - [ ] Points file: .csv with `lat` and `lng` header columns, or .json array of [lat, lng] / { lat, lng } (extra fields ignored)
-- [ ] npx pinzone build <points> -o <zones.json>        (warnings go to stderr: read them)
+- [ ] npx tz-at-point build <points> -o <zones.json>        (warnings go to stderr: read them)
 - [ ] Commit zones.json next to the code that imports it
 - [ ] Import the table as JSON and call createLookup(table) once, at module scope
 - [ ] Remove every runtime readFileSync of data files: import them as JSON too (see "Data the function reads")
 - [ ] Handle { zone: null } and treat source 'raster' for a known point as a stale table
-- [ ] CI step 1: npx pinzone build <points> -o <zones.json> --check   (a point was added without rebuilding)
-- [ ] CI step 2: npx pinzone check <zones.json>                      (table edited, or geo-tz/Node changed)
-- [ ] After any geo-tz, pinzone or Node version change (npm update included): build --refresh, check, review the diff
+- [ ] CI step 1: npx tz-at-point build <points> -o <zones.json> --check   (a point was added without rebuilding)
+- [ ] CI step 2: npx tz-at-point check <zones.json>                      (table edited, or geo-tz/Node changed)
+- [ ] After any geo-tz, tz-at-point or Node version change (npm update included): build --refresh, check, review the diff
 ```
 
 ## Data the function reads
 
-`pinzone build` reads CSV directly, so `build` never needs a converter. The runtime is different: a serverless function can't `readFileSync` a CSV any more than geo-tz can read its data files. If the handler needs the venue list itself, keep that list as JSON, import it, and pass the same JSON file to `build`. One file, no drift. Only if people must keep editing a CSV, generate the JSON from it in a script and check both in. If the columns are named differently (`latitude`, `lon`), see `references/setup.md`.
+`tz-at-point build` reads CSV directly, so `build` never needs a converter. The runtime is different: a serverless function can't `readFileSync` a CSV any more than geo-tz can read its data files. If the handler needs the venue list itself, keep that list as JSON, import it, and pass the same JSON file to `build`. One file, no drift. Only if people must keep editing a CSV, generate the JSON from it in a script and check both in. If the columns are named differently (`latitude`, `lon`), see `references/setup.md`.
 
 ## Migrating from geo-tz
 
@@ -45,7 +45,7 @@ Copy this and tick it off.
 ## Runtime rules
 
 ```js
-import { createLookup } from 'pinzone';
+import { createLookup } from 'tz-at-point';
 import table from './zones.json' with { type: 'json' };
 
 const zoneAt = createLookup(table); // once, at module scope
@@ -88,13 +88,13 @@ for (const v of venues) assert.ok(['table', 'table-near'].includes(zoneAt(v.lat,
 |---|---|---|
 | `wrote zones.json: N points (M resolved)` | Table written | Commit it |
 | `up to date: 5 points` | No point is missing. The count is table entries, not lines in your points file. `build` never re-validates existing entries; that is `check`'s job | None |
-| `1 point missing from …` (exit 1) | `--check` found points not in the table, or there is no table yet | Run the `run: npx pinzone build …` line it prints, commit |
+| `1 point missing from …` (exit 1) | `--check` found points not in the table, or there is no table yet | Run the `run: npx tz-at-point build …` line it prints, commit |
 | `warning: KEY is within 10m of another zone; …` | That entry has radius 0: its whole ~11m key cell answers one zone, even the part across the border. Repeats on every build | Nothing, unless the point should be in the other zone. When both zones keep the same clocks (Amsterdam and Brussels), local times are unaffected either way. To check a specific point, resolve it with `geo-tz/all` yourself |
 | `warning: LAT,LNG is in A, but its key KEY is in B; …` | The point itself is across the border from its rounded key. Printed only when that key is first added, so silence does not prove a point is on its key's side | Lookups there answer B. Nudge the coordinate onto the correct side if it matters |
-| `FAIL KEY: table says A, polygons say B` (exit 1) | Table disagrees with the installed geo-tz (edited, merged badly, or boundaries changed) | `npx pinzone build <points> -o <zones.json> --refresh` with the same `--max-radius` you built with, then `check`, review `git diff`, commit |
+| `FAIL KEY: table says A, polygons say B` (exit 1) | Table disagrees with the installed geo-tz (edited, merged badly, or boundaries changed) | `npx tz-at-point build <points> -o <zones.json> --refresh` with the same `--max-radius` you built with, then `check`, review `git diff`, commit |
 | `FAIL KEY: radius Rm reaches another zone` | Boundaries moved closer | Same as above |
 | `FAIL ZONE: not a zone this runtime's Intl accepts` | The Node running `check` is too old for that zone | Update Node. Refreshing won't change the name, unless the same entry also failed with `table says …` |
-| `pinzone: …` (exit 2) | Bad arguments or input | Read the message; see references/cli.md |
+| `tz-at-point: …` (exit 2) | Bad arguments or input | Read the message; see references/cli.md |
 
 Exit codes: 0 success, 1 a check found a problem, 2 bad arguments or input.
 
@@ -102,4 +102,4 @@ Exit codes: 0 success, 1 a check found a problem, 2 bad arguments or input.
 
 - [references/api.md](references/api.md): `createLookup`, `pointKey`, types, table format, performance. Open when writing code against the API.
 - [references/cli.md](references/cli.md): every flag, message and exit code. Open when a command prints something not in the table above.
-- [references/setup.md](references/setup.md): points files from other data, TypeScript and bundler JSON imports, CI workflow, upgrading geo-tz, tests. Open when wiring pinzone into a project.
+- [references/setup.md](references/setup.md): points files from other data, TypeScript and bundler JSON imports, CI workflow, upgrading geo-tz, tests. Open when wiring tz-at-point into a project.

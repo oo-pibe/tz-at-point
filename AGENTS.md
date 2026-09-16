@@ -1,6 +1,6 @@
-# Working on pinzone
+# Working on tz-at-point
 
-pinzone answers the IANA timezone at a coordinate from a committed JSON table, falling back to a raster, with no file reads at runtime. This file is for agents and people changing pinzone itself. For using pinzone in another project, read `skills/pinzone/SKILL.md`.
+tz-at-point answers the IANA timezone at a coordinate from a committed JSON table, falling back to a raster, with no file reads at runtime. This file is for agents and people changing tz-at-point itself. For using tz-at-point in another project, read `skills/tz-at-point/SKILL.md`.
 
 ## Map
 
@@ -14,15 +14,15 @@ pinzone answers the IANA timezone at a coordinate from a committed JSON table, f
 | `src/radius.ts` | Build-time probing of the safe radius on a 10m lattice; `resolve` is shared by `build` and `check`. |
 | `src/points.ts` | Points from JSON or CSV. Pure: no file access. |
 | `src/text.ts` | Escaping untrusted text for messages. |
-| `src/cli.ts` | `pinzone build` and `pinzone check`. The only module that touches the filesystem or geo-tz. |
+| `src/cli.ts` | `tz-at-point build` and `tz-at-point check`. The only module that touches the filesystem or geo-tz. |
 | `test/` | `node:test` suites per module (text escaping is covered in `table.test.ts`), plus `cli.test.ts` (spawns the CLI), `bundle.test.ts` and `docs.test.ts`. |
-| `skills/pinzone/` | The agent skill shipped to users: `SKILL.md` and `references/`. |
+| `skills/tz-at-point/` | The agent skill shipped to users: `SKILL.md` and `references/`. |
 | `.claude-plugin/`, `kimi.plugin.json` | Plugin manifests for Claude Code, Codex and Kimi Code. They point at `skills/`. |
 
 ## Invariants
 
 - The lookup function returned by `createLookup` never throws. Bad input gives `{ zone: null, source: null }`.
-- `src/lookup.ts` (`pinzone/core`) has no fallback and must never import the raster; `src/index.ts` adds it. That split is what keeps the raster out of table-only bundles.
+- `src/lookup.ts` (`tz-at-point/core`) has no fallback and must never import the raster; `src/index.ts` adds it. That split is what keeps the raster out of table-only bundles.
 - A stored radius always has a fully probed ring beyond it, so a lobe crossing the radius between two probes cannot be missed.
 - Runtime modules (`index`, `lookup`, `table`, `key`, `geo`, `text`) import no Node built-ins and never import geo-tz. `test/bundle.test.ts` runs a bundled lookup with file reads denied.
 - Table format v1 is frozen: keys are `lat,lng` at 4 decimals with -180 written as 180; values are `[zone, radius]`; radii are multiples of 10 up to 1000.
@@ -45,7 +45,7 @@ claude plugin validate --strict .  # plugin and skill manifests
 - Write the failing test first, then the code.
 - CLI behaviour is tested by spawning `src/cli.ts` on temp directories; see `test/cli.test.ts` for the helpers.
 - Keep erasable TypeScript only (no enums or namespaces): tests run through Node's type stripping.
-- If you change a CLI flag, a printed message or a public export, update `skills/pinzone/references/`. `test/docs.test.ts` fails until you do, and lists the messages it tracks in `MESSAGES`.
+- If you change a CLI flag, a printed message or a public export, update `skills/tz-at-point/references/`. `test/docs.test.ts` fails until you do, and lists the messages it tracks in `MESSAGES`.
 - Keep `SKILL.md` short. Detail belongs in `references/`.
 
 ## Releasing

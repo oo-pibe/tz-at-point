@@ -10,7 +10,7 @@ const permission = process.allowedNodeEnvironmentFlags.has('--permission') ? '--
 
 /** Bundle `body` (with the package and a small table importable) and run it allowed to read only itself. */
 async function runBundled(body: string) {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'pinzone-bundle-')));
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'tz-at-point-bundle-')));
   writeFileSync(join(dir, 'zones.json'), JSON.stringify({ v: 1, points: { '51.5561,-0.2794': ['Europe/London', 500] } }));
   writeFileSync(join(dir, 'entry.ts'), `
     import { createLookup } from ${JSON.stringify(new URL('../src/index.ts', import.meta.url).pathname)};

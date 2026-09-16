@@ -1,14 +1,14 @@
-# pinzone CLI
+# tz-at-point CLI
 
 ```
 usage:
-  pinzone build <points.json|points.csv> -o <zones.json> [--check | --refresh] [--max-radius 250]
-  pinzone check <zones.json>
+  tz-at-point build <points.json|points.csv> -o <zones.json> [--check | --refresh] [--max-radius 250]
+  tz-at-point check <zones.json>
 ```
 
 `build` and `check` need geo-tz installed as a dev dependency (8.0.0 or later, for its `geo-tz/all` export). `build --check`, and a `build` with nothing to resolve, never load it. `--help` / `-h` prints the usage and exits 0, before or after a command.
 
-## `pinzone build <points> -o <zones.json>`
+## `tz-at-point build <points> -o <zones.json>`
 
 Adds every point missing from the table and never removes an entry. It never re-validates entries already in the table; `check` does that. For each new key it resolves the zone with `geo-tz/all` (not the default geo-tz export, whose merged dataset names some zones differently) and probes the safe radius.
 
@@ -38,14 +38,14 @@ Paths and table content in messages are escaped to printable ASCII. Usage text a
 - `re-resolved at --max-radius 250: wrote zones.json: …`: the table was built with a different `--max-radius`, so every entry was probed again under the new one.
 - `zones.json kept changing underneath this build; run it again`: five merge attempts in a row were overtaken by other builds writing the same table. Rare; rerun.
 - `up to date: 5 points`: nothing to add; the file was not touched. With `--check`, exit 0.
-- `1 point missing from zones.json:` followed by the missing keys and `run: npx pinzone build points.csv -o zones.json`: from `--check`, exit 1. Run that command and commit the table. The `run:` line repeats a non-default `--max-radius`.
+- `1 point missing from zones.json:` followed by the missing keys and `run: npx tz-at-point build points.csv -o zones.json`: from `--check`, exit 1. Run that command and commit the table. The `run:` line repeats a non-default `--max-radius`.
 - `zones.json does not exist yet`: from `--check` when there is no table, exit 1, followed by the same key list and `run:` line.
 - Counts (`5 points`) are entries in the table, not lines in the points file: several coordinates can round to one key.
 - `warning: 51.4394,4.9275 is within 10m of another zone; lookups that round to it answer Europe/Amsterdam, even from across the border`: the entry has radius 0. Its whole key cell (about 11m) answers one zone. Printed on stderr, once per key, on every build whose points include one. Not an error, and not printed with `--check` or when you passed `--max-radius 0`.
 - `warning: 51.449039,4.930128 is in Europe/Brussels, but its key 51.4490,4.9301 is in Europe/Amsterdam; lookups there answer Europe/Amsterdam`: the input point is within a few meters of a border, across it from its rounded key. On stderr. Only points whose key is added in that run are compared, so a new point that shares an existing key is never checked. Move the coordinate onto the correct side if it matters.
 - `...and 12 more`: lists are cut at 20 lines.
 
-## `pinzone check <zones.json>`
+## `tz-at-point check <zones.json>`
 
 Re-runs build's probes for every entry against the installed geo-tz, and checks every zone name against the runtime's `Intl`. Run it after upgrading geo-tz or Node, or in CI (give it a timeout on tables you didn't build: cost grows with each radius squared).
 
@@ -53,16 +53,17 @@ It uses the same lattice build used, so it finds stale entries, hand edits and m
 
 **Output**
 
+- `built with geo-tz 8.1.8`, or `built with geo-tz 8.1.8, checked against 8.2.0` when the installed version has moved on. Informational: `check` re-probes against what is installed either way, so a version difference alone is not a failure.
 - `ok: 5 points match the polygons` (`1 point matches`): exit 0.
 - `FAIL 51.4926,7.4519: table says Europe/Paris, polygons say Europe/Berlin`: the entry's zone is wrong for the installed geo-tz: the table was edited, merged badly, or boundaries changed. Exit 1.
 - `FAIL 51.4394,4.9275: radius 500m reaches another zone`: a probe inside the stored radius found another zone. Exit 1.
 - `FAIL America/Ciudad_Juarez: not a zone this runtime's Intl accepts`: the Node/ICU running `check` doesn't know that zone. Exit 1.
 - `fix: update Node; its timezone data doesn't know these zones`: printed when any zone failed the `Intl` check. Upgrade Node; rebuilding won't change the zone name.
-- `fix: rebuild the table with --refresh`: printed when any entry's zone or radius failed. Run `pinzone build <points> -o <zones.json> --refresh` (`check` only knows the table path, so supply the points file), then `check` again, and review `git diff` before committing.
+- `fix: rebuild the table with --refresh`: printed when any entry's zone or radius failed. Run `tz-at-point build <points> -o <zones.json> --refresh` (`check` only knows the table path, so supply the points file), then `check` again, and review `git diff` before committing.
 
 ## Errors (exit 2)
 
-Every error line starts with `pinzone: ` and exits 2.
+Every error line starts with `tz-at-point: ` and exits 2.
 
 | Message | Cause |
 |---|---|

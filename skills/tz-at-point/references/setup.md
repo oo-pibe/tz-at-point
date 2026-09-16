@@ -1,19 +1,19 @@
-# Setting up pinzone in a project
+# Setting up tz-at-point in a project
 
 ## Install
 
 ```sh
-npm install pinzone
+npm install tz-at-point
 npm install --save-dev geo-tz
 ```
 
-geo-tz (about 70MB) is only for `build` and `check`. Nothing at runtime imports it. pinzone needs Node 20.19+ or 22.12+, and is ESM: `require('pinzone')` works from Node 22.12 on.
+geo-tz (about 70MB) is only for `build` and `check`. Nothing at runtime imports it. tz-at-point needs Node 20.19+ or 22.12+, and is ESM: `require('tz-at-point')` works from Node 22.12 on.
 
-Importing from `pinzone/core` gives the same `createLookup` with no raster fallback, so the 73KB raster never enters your bundle. Points outside the table then answer `{ zone: null }`.
+Importing from `tz-at-point/core` gives the same `createLookup` with no raster fallback, so the 73KB raster never enters your bundle. Points outside the table then answer `{ zone: null }`.
 
 ## The points file
 
-`pinzone build` reads `.csv` (header with `lat` and `lng` columns) or `.json` (array of `[lat, lng]` or `{ lat, lng }`) directly. If the project already has one of those, pass it as is.
+`tz-at-point build` reads `.csv` (header with `lat` and `lng` columns) or `.json` (array of `[lat, lng]` or `{ lat, lng }`) directly. If the project already has one of those, pass it as is.
 
 If the data uses other names or lives elsewhere, write a points file once with a short script, and rerun it when the data changes:
 
@@ -33,15 +33,15 @@ The table must be imported, not read with `fs`, so the bundler embeds it.
 |---|---|
 | Node ESM, TypeScript `module: nodenext` | `import table from './zones.json' with { type: 'json' };` Node requires the attribute; TypeScript accepts it from 5.3 and enforces it from 5.7. `module: node16` rejects it. |
 | Bundlers: Next.js, Vite, esbuild, webpack, TypeScript `moduleResolution: bundler` | `import table from './zones.json';` also works |
-| CommonJS | `const table = require('./zones.json');` works, but `require('pinzone')` needs Node 22.12 or later |
+| CommonJS | `const table = require('./zones.json');` works, but `require('tz-at-point')` needs Node 22.12 or later |
 
 - Add `"resolveJsonModule": true` to `tsconfig.json` (needed on TypeScript 5.3 to 5.8 with nodenext; harmless otherwise).
 - Node prints no warning for JSON imports from 22.12 on.
-- Import other data the function needs (venue lists) the same way. A `readFileSync` of a data file in a serverless handler fails for the same reason geo-tz does. If that data is a CSV, keep it as JSON instead and pass the JSON to `pinzone build`, or generate the JSON from the CSV with a script and commit both.
+- Import other data the function needs (venue lists) the same way. A `readFileSync` of a data file in a serverless handler fails for the same reason geo-tz does. If that data is a CSV, keep it as JSON instead and pass the JSON to `tz-at-point build`, or generate the JSON from the CSV with a script and commit both.
 - If a bundler rejects the `with { type: 'json' }` syntax, use the plain `import table from './zones.json'` form.
 
 ```js
-import { createLookup } from 'pinzone';
+import { createLookup } from 'tz-at-point';
 import table from '../data/zones.json' with { type: 'json' };
 
 export const zoneAt = createLookup(table);
@@ -79,22 +79,22 @@ test('every venue resolves from the committed table', () => {
 ```yaml
 # .github/workflows/ci.yml, after `npm ci`
 - name: Timezone table covers every point
-  run: npx pinzone build data/points.csv -o data/zones.json --check
+  run: npx tz-at-point build data/points.csv -o data/zones.json --check
 - name: Timezone table matches current boundaries
-  run: npx pinzone check data/zones.json
+  run: npx tz-at-point check data/zones.json
   timeout-minutes: 10
 ```
 
 The first step is fast and doesn't load geo-tz. The second re-probes every entry; on large tables, run it on dependency-update pull requests or on a schedule instead of every push.
 
-## Upgrading geo-tz, pinzone or Node, or when `check` fails
+## Upgrading geo-tz, tz-at-point or Node, or when `check` fails
 
 Treat any change to the installed geo-tz version as a boundary-data change, including one from `npm update` or a Dependabot pull request. A Node upgrade can change which zone names `Intl` accepts.
 
 ```sh
 npm install --save-dev geo-tz@latest
-npx pinzone build data/points.csv -o data/zones.json --refresh   # add the same --max-radius you build with
-npx pinzone check data/zones.json
+npx tz-at-point build data/points.csv -o data/zones.json --refresh   # add the same --max-radius you build with
+npx tz-at-point check data/zones.json
 git diff data/zones.json
 ```
 
