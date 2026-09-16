@@ -4,8 +4,8 @@ Bug reports are welcome, especially ones with a coordinate that gets the wrong a
 
 ```sh
 git clone https://github.com/oo-pibe/tz-at-point && cd tz-at-point
-npm install
-npm test        # node:test, ~7s, needs Node 22.18+ to run the TypeScript directly
+npm ci --ignore-scripts   # nothing here needs an install script; esbuild's is optional
+npm test                  # node:test, needs Node 22.18+ to run the TypeScript directly
 npx tsc         # typecheck
 ```
 

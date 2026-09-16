@@ -74,10 +74,14 @@
     }
   },
   "devDependencies": {
-    "@types/node": "^26.5.1",
+    "@types/node": "^22",
     "esbuild": "^0.28.2",
-    "geo-tz": "^8.1.8",
+    "geo-tz": "8.1.8",
     "typescript": "^7.0.2"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }

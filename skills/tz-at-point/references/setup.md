@@ -7,7 +7,9 @@ npm install tz-at-point
 npm install --save-dev geo-tz
 ```
 
-geo-tz (about 70MB) is only for `build` and `check`. Nothing at runtime imports it. tz-at-point needs Node 20.19+ or 22.12+, and is ESM: `require('tz-at-point')` works from Node 22.12 on.
+geo-tz (about 70MB, 30 packages) is only for `build` and `check`, and nothing at runtime imports it. At runtime a consumer installs two packages: this one and the raster.
+
+Generated tables carry an `attribution` line naming OpenStreetMap and the ODbL, because the boundaries come from there. Anything you ship that bundles the raster should credit OpenStreetMap; see the README's data sources section. tz-at-point needs Node 20.19+ or 22.12+, and is ESM: `require('tz-at-point')` works from Node 22.12 on.
 
 Importing from `tz-at-point/core` gives the same `createLookup` with no raster fallback, so the 73KB raster never enters your bundle. Points outside the table then answer `{ zone: null }`.
 

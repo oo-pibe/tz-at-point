@@ -270,6 +270,17 @@ tz-at-point's code is MIT. The answers come from three upstreams on different te
 
 This package ships no OpenStreetMap data of its own. geo-tz is an optional peer dependency the CLI uses on your machine, never imported at runtime.
 
+### What you install
+
+| | Packages | Maintainer accounts | Size |
+|---|---|---|---|
+| Runtime (what your app installs) | 2, including this one | 1 | ~250KB |
+| Build time, with geo-tz | 30 more | 63 more | 73MB |
+
+The CLI loads geo-tz through a dynamic import, so it never enters a consumer's runtime graph. If you only need the table, `npm install --save-dev geo-tz` on the machine that builds it and nothing else inherits that footprint.
+
+Every dependency here resolves from the npm registry with a verified signature, and `npm audit` reports nothing. The only install script in the whole tree is esbuild's, which is a dev dependency and isn't needed: this repo's `.npmrc` sets `ignore-scripts=true`, and everything still builds and tests.
+
 ### What that means for your table
 
 `zones.json` holds your own coordinates, a zone name and a radius. It carries no OpenStreetMap geometry. The OSM Foundation's [Geocoding Guideline](https://osmfoundation.org/wiki/Licence/Community_Guidelines/Geocoding_-_Guideline) treats results like these as insubstantial extracts that don't trigger ODbL share-alike, and its [Attribution Guidelines](https://osmfoundation.org/wiki/Licence/Attribution_Guidelines) say a group of geocoding results "need not maintain attribution attached to the results, as long as it does not form a Derivative Database". Committing the table doesn't put your application code under ODbL.
