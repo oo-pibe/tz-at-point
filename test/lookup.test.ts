@@ -54,6 +54,11 @@ test('each call returns a fresh object', () => {
   assert.equal(lookup(NaN, 0).zone, null);
 });
 
+test('a null options argument is not a crash', () => {
+  assert.equal(createLookup(table, null as unknown as undefined)(51.5561, -0.2794).zone, 'Europe/London');
+  assert.equal(coreLookup(table, null as unknown as undefined)(51.5561, -0.2794).zone, 'Europe/London');
+});
+
 test('a malformed table throws at creation, not at lookup', () => {
   assert.throws(() => createLookup({ v: 1, points: { nope: ['Europe/London', 0] } }), TypeError);
 });

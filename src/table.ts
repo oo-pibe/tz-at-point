@@ -69,11 +69,20 @@ export function readTable(table: unknown, name = 'tz-at-point table'): Entry[] {
   return entries;
 }
 
+/**
+ * Where the zones came from. Not required: the OSM Foundation's geocoding guideline treats a collection
+ * of query results like this as an insubstantial extract. It travels with the file so that whoever finds
+ * it later knows to credit OpenStreetMap in anything they ship.
+ */
+const ATTRIBUTION = 'Timezone boundaries from OpenStreetMap (https://www.openstreetmap.org/copyright), '
+  + 'ODbL 1.0. Zone names from the IANA tz database, public domain.';
+
 /** Serialise a table with sorted keys, one entry per line, so diffs stay readable. */
 export function formatTable(points: Map<string, [string, number]>, maxRadius: number, geoTz?: string): string {
   const lines = [...points.keys()].sort().map((key) => `    ${JSON.stringify(key)}: ${JSON.stringify(points.get(key))}`);
   const lineage = geoTz === undefined ? '' : `  "geoTz": ${JSON.stringify(geoTz)},\n`;
-  return `{\n  "v": 1,\n${lineage}  "maxRadius": ${maxRadius},\n  "points": {\n${lines.join(',\n')}${lines.length ? '\n' : ''}  }\n}\n`;
+  return `{\n  "v": 1,\n  "attribution": ${JSON.stringify(ATTRIBUTION)},\n${lineage}  "maxRadius": ${maxRadius},`
+    + `\n  "points": {\n${lines.join(',\n')}${lines.length ? '\n' : ''}  }\n}\n`;
 }
 
 /** The geo-tz version a table was built with, if it recorded one. */

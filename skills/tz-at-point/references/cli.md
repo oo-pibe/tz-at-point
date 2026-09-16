@@ -3,7 +3,7 @@
 ```
 usage:
   tz-at-point build <points.json|points.csv> -o <zones.json> [--check | --refresh] [--max-radius 250]
-  tz-at-point check <zones.json>
+  tz-at-point check <zones.json> [--raster]
 ```
 
 `build` and `check` need geo-tz installed as a dev dependency (8.0.0 or later, for its `geo-tz/all` export). `build --check`, and a `build` with nothing to resolve, never load it. `--help` / `-h` prints the usage and exits 0, before or after a command.

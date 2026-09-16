@@ -80,7 +80,7 @@ for (const v of venues) assert.ok(['table', 'table-near'].includes(zoneAt(v.lat,
 
 - Hand-edit `zones.json`. Change the points file and run `build`.
 - Run `build` or import geo-tz in a request handler.
-- Use flags that don't exist. `build` takes `-o/--out`, `--check`, `--refresh`, `--max-radius` (multiple of 10, up to 1000, default 250), `-h/--help`. `check` takes only the table path.
+- Use flags that don't exist. `build` takes `-o/--out`, `--check`, `--refresh`, `--max-radius` (multiple of 10, up to 1000, default 250), `-h/--help`. `check` takes the table path, `--raster` and `-h/--help`.
 - Expect `build` to delete entries for removed points. It only adds. To prune, delete `zones.json` and build again.
 
 ## Reading the output

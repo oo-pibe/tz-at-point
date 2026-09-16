@@ -4,7 +4,12 @@
 import { createLookup, pointKey, type Lookup, type Options, type Result, type Source, type Table } from 'tz-at-point';
 ```
 
-Node 22 or later. Published types work with TypeScript 5.0 or later.
+Node 20.19+ or 22.12+. Published types work with TypeScript 5.0 or later.
+
+Two entry points, same function:
+
+- `tz-at-point` answers points outside the table with a bundled raster (~77KB in a bundle).
+- `tz-at-point/core` has no fallback, so the raster never enters your bundle (~3KB). Points outside the table return `{ zone: null, source: null }` unless you pass your own `fallback`.
 
 ## `createLookup(table, options?)`
 
@@ -12,7 +17,7 @@ Node 22 or later. Published types work with TypeScript 5.0 or later.
 function createLookup(table: unknown, options?: Options): Lookup;
 ```
 
-Builds a lookup from a table written by `tz-at-point build`. Call it once per process, at module scope: it validates the table and builds a grid index. For 30,000 entries that took 60-270ms and about 10MB of heap at radius 250, more as radii grow. Each lookup then takes a microsecond or so.
+Builds a lookup from a table written by `tz-at-point build`. Call it once per process, at module scope: it validates the table and builds a grid index. For 30,000 entries that took 60-270ms and 10-15MB of heap at radius 250, more as radii grow. Each lookup then takes a microsecond or so.
 
 - `table` is typed `unknown` so a JSON import passes without a cast. It is validated at runtime.
 - Throws a `TypeError` if the table is malformed. The message starts with `tz-at-point table:` and names the first bad entry.

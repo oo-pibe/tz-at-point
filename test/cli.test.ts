@@ -115,6 +115,35 @@ test('check --raster counts how many of your own points the raster alone would g
   assert.doesNotMatch(run('check', w.out).stdout, /raster:/, 'only with the flag');
 });
 
+test('--raster survives zones this runtime does not know, and still reports the failure', () => {
+  const w = workspace([[65.8481, 24.1466]]);
+  writeFileSync(w.out, JSON.stringify({ v: 1, maxRadius: 250, points: { '65.8481,24.1466': ['Europe/Atlantis', 0] } }));
+  const r = run('check', w.out, '--raster');
+  assert.equal(r.status, 1, r.stdout + r.stderr); // the flag must not turn a reported failure into a crash
+  assert.match(r.stdout, /FAIL Europe\/Atlantis: not a zone this runtime's Intl accepts/);
+  assert.match(r.stdout, /raster: 1 of 1 point disagrees with the table/);
+});
+
+test('geoTz records lineage only for a table that was resolved as a whole', () => {
+  const w = workspace([[51.5561, -0.2794]]);
+  assert.equal(run('build', w.points, '-o', w.out).status, 0);
+  const installed = JSON.parse(readFileSync(new URL('../node_modules/geo-tz/package.json', import.meta.url), 'utf8')).version;
+
+  // Pretend the table came from an older geo-tz, then add one point: the old lineage must stand.
+  const table = JSON.parse(readFileSync(w.out, 'utf8'));
+  table.geoTz = '8.0.0';
+  writeFileSync(w.out, JSON.stringify(table));
+  writeFileSync(w.points, JSON.stringify([[51.5561, -0.2794], [48.8566, 2.3522]]));
+  const partial = run('build', w.points, '-o', w.out);
+  assert.equal(partial.status, 0, partial.stderr);
+  assert.equal(JSON.parse(readFileSync(w.out, 'utf8')).geoTz, '8.0.0', 'a partial build must not claim the whole table is fresh');
+  assert.match(partial.stdout, /still records geo-tz 8\.0\.0/);
+
+  // --refresh resolves everything, so it may stamp the installed version.
+  assert.equal(run('build', w.points, '-o', w.out, '--refresh').status, 0);
+  assert.equal(JSON.parse(readFileSync(w.out, 'utf8')).geoTz, installed);
+});
+
 test('a file that is not JSON is named, never echoed', () => {
   const w = workspace('AWS_SECRET_ACCESS_KEY=abc123');
   writeFileSync(join(w.dir, 'ok.json'), '[[1,2]]');

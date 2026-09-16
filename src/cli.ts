@@ -33,7 +33,8 @@ function geoTzVersion(): string | undefined {
   try {
     // geo-tz does not export ./package.json, so resolve the dataset entry and walk up out of dist/.
     const entry = new URL(import.meta.resolve('geo-tz/all'));
-    return JSON.parse(readFileSync(new URL('../package.json', entry), 'utf8')).version;
+    const { name, version } = JSON.parse(readFileSync(new URL('../package.json', entry), 'utf8'));
+    return name === 'geo-tz' && typeof version === 'string' && /^[\w.+-]{1,32}$/.test(version) ? version : undefined;
   } catch {
     return undefined;
   }
@@ -197,7 +198,15 @@ async function build(args: string[]): Promise<number> {
     // keeping our freshly resolved entries, and confirm the file we leave behind holds all of them.
     for (let attempt = 1; ; attempt++) {
       for (const e of readCommitted()) if (!table.has(e.key)) table.set(e.key, [e.zone, e.radius]);
-      writeAtomically(target, formatTable(table, maxRadius, geoTz ?? tableGeoTz(exists ? readJson(out) : undefined)));
+      // Lineage describes the whole table, so only a run that resolved every entry may stamp it. A partial
+      // build keeps what is recorded and says so, rather than claiming entries it never touched are fresh.
+      const resolvedEverything = !exists || reResolve;
+      const recorded = exists ? tableGeoTz(readJson(out)) : undefined;
+      const lineage = resolvedEverything ? geoTz : recorded;
+      if (!resolvedEverything && recorded && geoTz && recorded !== geoTz) {
+        console.log(printable(`${out} still records geo-tz ${recorded}; resolved the new points with ${geoTz}. Run --refresh to re-resolve the rest.`));
+      }
+      writeAtomically(target, formatTable(table, maxRadius, lineage));
       const committed = new Map(readCommitted().map((e) => [e.key, `${e.zone},${e.radius}`]));
       const lost = [...table].filter(([key, [zone, radius]]) => committed.get(key) !== `${zone},${radius}`);
       if (lost.length === 0) break;
@@ -262,9 +271,16 @@ async function check(args: string[]): Promise<number> {
   // What the raster alone would answer for these same points: the case for keeping the table at all.
   if (values.raster) {
     const { default: tzlookup } = await import('@photostructure/tz-lookup');
-    const offsets = (zone: string) => ['2026-01-15T12:00:00Z', '2026-07-15T12:00:00Z']
-      .map((iso) => new Intl.DateTimeFormat('en', { timeZone: zone, timeZoneName: 'longOffset' }).format(new Date(iso)))
-      .join();
+    // Sampled across the year ahead, so a zone that diverges only for part of it (Ramadan in Casablanca,
+    // a southern-hemisphere summer) is not reported as harmless. Unknown zones count as different.
+    const quarters = [0, 3, 6, 9].map((months) => { const d = new Date(); d.setMonth(d.getMonth() + months); return d; });
+    const offsets = (zone: string) => {
+      try {
+        return quarters.map((d) => new Intl.DateTimeFormat('en', { timeZone: zone, timeZoneName: 'longOffset' }).format(d)).join();
+      } catch {
+        return `unknown:${zone}`;
+      }
+    };
     const differing = entries.map((e) => ({ e, raster: tzlookup(e.lat, e.lng) })).filter(({ e, raster }) => raster !== e.zone);
     const shifted = differing.filter(({ e, raster }) => offsets(raster) !== offsets(e.zone));
     console.log(`raster: ${differing.length} of ${plural(entries.length, 'point')} ${verb(differing.length, 'disagrees', 'disagree')} with the table, ${shifted.length} by a different UTC offset`);

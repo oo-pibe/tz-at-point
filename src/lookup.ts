@@ -79,7 +79,8 @@ export function* cellsReached({ lat, lng, radius }: Entry) {
  * const { zone } = zoneAt(51.5561, -0.2794); // 'Europe/London'
  * const local = zone && new Intl.DateTimeFormat('en-GB', { timeZone: zone, timeStyle: 'short' }).format(new Date('2026-11-14T19:45:00Z')); // '19:45'
  */
-export function createLookup(table: unknown, { fallback = null }: Options = {}): Lookup {
+export function createLookup(table: unknown, options?: Options | null): Lookup {
+  const fallback = options?.fallback ?? null;
   const exact = new Map<string, string>();
   const cells = new Map<number, Entry[]>();
   for (const entry of readTable(table)) {

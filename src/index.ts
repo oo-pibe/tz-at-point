@@ -31,8 +31,8 @@ import type { Lookup, Options } from './lookup.ts';
  * const { zone } = zoneAt(51.5561, -0.2794); // 'Europe/London'
  * const local = zone && new Intl.DateTimeFormat('en-GB', { timeZone: zone, timeStyle: 'short' }).format(new Date('2026-11-14T19:45:00Z')); // '19:45'
  */
-export const createLookup = (table: unknown, options: Options = {}): Lookup =>
-  fromTable(table, { fallback: options.fallback === undefined ? tzlookup : options.fallback });
+export const createLookup = (table: unknown, options?: Options | null): Lookup =>
+  fromTable(table, { fallback: options?.fallback === undefined ? tzlookup : options.fallback });
 export type { Lookup, Options, Result, Source } from './lookup.ts';
 export { pointKey } from './key.ts';
 export type { Table } from './table.ts';

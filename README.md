@@ -46,7 +46,7 @@ So the ecosystem asks you to pick: exact but unbundlable, or bundlable but appro
 | | geo-tz | tz-lookup (raster) | hosted API | tz-at-point |
 |---|---|---|---|---|
 | Accuracy at your points | exact | ~5–10% wrong | exact | **exact** (it is geo-tz, at build time) |
-| Install / bundle | 73MB | 88KB | — | 29KB + ~45 bytes per point |
+| Adds to your bundle | can't be bundled | 77KB | — | **77KB, or 3KB via `/core`** + ~50 bytes per point |
 | Reads files at runtime | yes | no | no | **no** |
 | Works on edge runtimes | no | yes | yes | **yes** |
 | Answers any coordinate | yes | yes | yes | your points exactly, everything else via the raster |
@@ -56,6 +56,7 @@ So the ecosystem asks you to pick: exact but unbundlable, or bundlable but appro
 
 ```console
 $ npx tz-at-point check zones.json --raster
+built with geo-tz 8.1.8
 raster: 2 of 3 points disagree with the table, 2 by a different UTC offset
   -4.2527,-69.9381: raster says America/Eirunepe, table says America/Manaus
   65.8481,24.1466: raster says Europe/Stockholm, table says Europe/Helsinki
@@ -82,7 +83,7 @@ Build resolves each point with geo-tz, then probes the ground around it on a ~10
 
 ## Prior art
 
-Everything maintained in this space answers "any point on Earth, at runtime", and carries a global dataset to do it. Precomputing for a *known* point set has been asked for and never built: geo-tz's maintainer [reopened an issue in 2018](https://github.com/evansiroky/node-geo-tz/issues/75) to say it "would make a good feature… I'm open to receiving a PR", and [a Lambda user asking for a smaller package in 2024](https://github.com/evansiroky/node-geo-tz/issues/170) is still waiting. Meanwhile people write the same script by hand, over and over: resolve the points with geo-tz in `scripts/`, commit the JSON, keep geo-tz out of `src/`.
+Everything maintained in this space answers "any point on Earth, at runtime", and carries a global dataset to do it. People have asked geo-tz for a smaller one for years: in 2018 its maintainer reopened [an issue about shipping a subset](https://github.com/evansiroky/node-geo-tz/issues/75) to say "that'd make a good feature… I'm open to receiving a PR" (it was closed unimplemented), and [a Lambda user asking the same in 2024](https://github.com/evansiroky/node-geo-tz/issues/170) is still waiting. Narrowing the *dataset* is the request; resolving a *known point set* instead is the answer nobody packaged, so people write the same script by hand: resolve the points with geo-tz in `scripts/`, commit the JSON, keep geo-tz out of `src/`.
 
 This is that script, made reliable: probed radii so nearby coordinates still resolve, a `check` command for CI, and the geo-tz version recorded in the table.
 
@@ -161,10 +162,10 @@ Full detail: [API reference](skills/tz-at-point/references/api.md) · [CLI refer
 
 ```sh
 tz-at-point build <points.json|points.csv> -o <zones.json> [--check | --refresh] [--max-radius 250]
-tz-at-point check <zones.json>
+tz-at-point check <zones.json> [--raster]
 ```
 
-`build` only adds points, never removes them, and leaves the file alone when there's nothing to add. Parallel builds of the same table are safe. `--check` reports missing points without writing, and without needing geo-tz. `--refresh` re-resolves every entry after a geo-tz upgrade. `check` re-probes the table against the boundaries you have installed.
+`build` only adds points, never removes them, and leaves the file alone when there's nothing to add. `check --raster` reports what the raster alone would answer for your points. Parallel builds of the same table are safe. `--check` reports missing points without writing, and without needing geo-tz. `--refresh` re-resolves every entry after a geo-tz upgrade. `check` re-probes the table against the boundaries you have installed.
 
 Exit codes: `0` success, `1` a check found a problem, `2` bad arguments or input.
 
@@ -199,10 +200,10 @@ The rest, measured rather than asserted:
 | | |
 |---|---|
 | Lookup | ~350ns from the table, ~480ns through the raster |
-| Startup | 60ms and 15MB for a 30,000-point table |
+| Startup | 60-270ms and 10-15MB for a 30,000-point table |
 | Build | ~2,200 geo-tz probes per point at the default radius |
-| Runtime dependencies | one, the 73KB raster, or none via `tz-at-point/core` |
-| Tests | 115, including a bundled run with file reads denied and a lookup checked against a brute-force scan |
+| Runtime dependencies | one, the raster; `tz-at-point/core` keeps it out of your bundle |
+| Tests | 122, including bundled runs with file reads denied and a lookup checked against a brute-force scan |
 | Also checked | differential fuzzing against geo-tz over millions of points, and mutation testing of the suite |
 
 ## Keeping the table current
@@ -249,13 +250,41 @@ Something else reads a file at runtime, usually a data file loaded with `readFil
 
 **Does this replace geo-tz?** No. It uses geo-tz at build time, where reading 30MB of polygons costs nothing, and keeps it out of your deployment.
 
-**How big does the table get?** About 45 bytes per point, so 1,000 venues is roughly 45KB of JSON inside your bundle.
+**How big does the table get?** Roughly 50 bytes per point (45 for short zone names like `Europe/London`, 65 for `America/Argentina/Buenos_Aires`), so 1,000 venues is about 50KB of JSON.
 
 **What about daylight saving?** tz-at-point gives you the zone. The offset at a given moment comes from your runtime's own timezone database through `Intl`, so DST rules stay current without touching the table.
 
 **Does it work in the browser?** The runtime does. Building the table needs Node and geo-tz.
 
 **What if a place moves, or I delete one?** `build` adds and never removes. To prune, delete `zones.json` and build it again.
+
+## Data sources
+
+tz-at-point's code is MIT. The answers come from three upstreams on different terms, and only one of them travels in your bundle.
+
+| What | From | Licence |
+|---|---|---|
+| Zone names (`Europe/Madrid`) | [IANA time zone database](https://www.iana.org/time-zones) | Public domain |
+| Boundaries, at build time | [geo-tz](https://github.com/evansiroky/node-geo-tz) ← [timezone-boundary-builder](https://github.com/evansiroky/timezone-boundary-builder) ← OpenStreetMap | Code MIT, data [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/) |
+| Raster fallback, at runtime | [@photostructure/tz-lookup](https://github.com/photostructure/tz-lookup) | CC0-1.0, built from the same OpenStreetMap boundaries |
+
+This package ships no OpenStreetMap data of its own. geo-tz is an optional peer dependency the CLI uses on your machine, never imported at runtime.
+
+### What that means for your table
+
+`zones.json` holds your own coordinates, a zone name and a radius. It carries no OpenStreetMap geometry. The OSM Foundation's [Geocoding Guideline](https://osmfoundation.org/wiki/Licence/Community_Guidelines/Geocoding_-_Guideline) treats results like these as insubstantial extracts that don't trigger ODbL share-alike, and its [Attribution Guidelines](https://osmfoundation.org/wiki/Licence/Attribution_Guidelines) say a group of geocoding results "need not maintain attribution attached to the results, as long as it does not form a Derivative Database". Committing the table doesn't put your application code under ODbL.
+
+Two things still apply.
+
+**Credit OpenStreetMap in anything you ship.** The default import bundles the raster fallback, which is built from OpenStreetMap boundaries. One line wherever your app already lists third-party credits:
+
+> Timezone data from [OpenStreetMap](https://www.openstreetmap.org/copyright), available under the [ODbL](https://opendatacommons.org/licenses/odbl/1-0/).
+
+Importing from `tz-at-point/core` leaves the raster out, and then the table is all you ship. Every generated table carries this line in an `attribution` field, so the file explains itself wherever it ends up.
+
+**Keep the table a list of your own places.** Resolving your venues is what this is for. Probing a lattice across a city or a country is what that guideline calls "systematically reverse engineering the whole or a substantial part of the OSM database through Geocoding", which would make your table a Derivative Database and put it under ODbL.
+
+This is a summary, not legal advice.
 
 ## Contributing
 

@@ -121,7 +121,9 @@ test('a table built without Object.prototype is still a table', () => {
 });
 
 test('an empty table is formatted exactly', () => {
-  assert.equal(formatTable(new Map(), 250), '{\n  "v": 1,\n  "maxRadius": 250,\n  "points": {\n  }\n}\n');
+  const text = formatTable(new Map(), 250);
+  assert.match(text, /^\{\n  "v": 1,\n  "attribution": "[^"]+",\n  "maxRadius": 250,\n  "points": \{\n  \}\n\}\n$/, text);
+  assert.deepEqual(readTable(JSON.parse(text)), []);
 });
 
 // ---------- text.ts ----------

@@ -54,9 +54,16 @@ test('inherited properties are not a table', () => {
   assert.throws(() => readTable(Object.create({ v: 1, points: {} })), TypeError);
 });
 
+test('the table says where its data came from, and still validates', () => {
+  const text = formatTable(new Map([['51.5561,-0.2794', ['Europe/London', 250]]]), 250);
+  assert.match(text, /"attribution": "Timezone boundaries from OpenStreetMap \(https:\/\/www\.openstreetmap\.org\/copyright\), ODbL 1\.0\./);
+  assert.match(text, /IANA tz database, public domain\."/);
+  assert.equal(readTable(JSON.parse(text)).length, 1);
+});
+
 test('formats one sorted entry per line and round-trips', () => {
   const text = formatTable(new Map([['51.5561,-0.2794', ['Europe/London', 500]], ['35.8854,-5.3279', ['Africa/Ceuta', 0]]]), 250);
-  assert.equal(text, '{\n  "v": 1,\n  "maxRadius": 250,\n  "points": {\n    "35.8854,-5.3279": ["Africa/Ceuta",0],\n    "51.5561,-0.2794": ["Europe/London",500]\n  }\n}\n');
+  assert.match(text, /"points": \{\n    "35\.8854,-5\.3279": \["Africa\/Ceuta",0\],\n    "51\.5561,-0\.2794": \["Europe\/London",500\]\n  \}\n\}\n$/);
   assert.equal(readTable(JSON.parse(text)).length, 2);
   assert.deepEqual(readTable(JSON.parse(formatTable(new Map(), 250))), []);
 });

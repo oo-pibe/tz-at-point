@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { build } from 'esbuild';
@@ -33,6 +33,20 @@ test('a bundled lookup answers with no filesystem access beyond its own file', a
     { zone: 'Europe/London', source: 'table-near' },
     { zone: 'Europe/Gibraltar', source: 'raster' },
   ]);
+});
+
+test('tz-at-point/core leaves the raster out of the bundle entirely', async () => {
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'tz-core-')));
+  writeFileSync(join(dir, 'entry.ts'), `
+    import { createLookup } from ${JSON.stringify(new URL('../src/lookup.ts', import.meta.url).pathname)};
+    console.log(createLookup({ v: 1, points: { '51.5561,-0.2794': ['Europe/London', 250] } })(51.5561, -0.2794).zone);
+  `);
+  const out = join(dir, 'core.mjs');
+  await build({ entryPoints: [join(dir, 'entry.ts')], bundle: true, platform: 'node', format: 'esm', outfile: out, logLevel: 'silent' });
+  const bundled = readFileSync(out, 'utf8');
+  assert.doesNotMatch(bundled, /photostructure|tz-lookup/, 'the raster must not reach a core bundle');
+  assert.ok(bundled.length < 20_000, `core bundle is ${bundled.length} bytes`);
+  assert.equal(spawnSync(process.execPath, [out], { encoding: 'utf8' }).stdout.trim(), 'Europe/London');
 });
 
 test('the sandbox really does refuse file reads (so the test above means something)', async () => {
