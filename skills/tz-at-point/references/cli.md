@@ -4,9 +4,10 @@
 usage:
   tz-at-point build <points.json|points.csv> -o <zones.json> [--check | --refresh] [--max-radius 250]
   tz-at-point check <zones.json> [--raster]
+  tz-at-point --version
 ```
 
-`build` and `check` need geo-tz installed as a dev dependency (8.0.0 or later, for its `geo-tz/all` export). `build --check`, and a `build` with nothing to resolve, never load it. `--help` / `-h` prints the usage and exits 0, before or after a command.
+`build` and `check` need geo-tz installed as a dev dependency (8.0.0 or later, for its `geo-tz/all` export). `build --check`, and a `build` with nothing to resolve, never load it. `--help` / `-h` prints the usage and exits 0, before or after a command. `--version` prints the package version alone, exit 0.
 
 ## `tz-at-point build <points> -o <zones.json>`
 
@@ -43,6 +44,7 @@ Paths and table content in messages are escaped to printable ASCII. Usage text a
 - Counts (`5 points`) are entries in the table, not lines in the points file: several coordinates can round to one key.
 - `warning: 51.4394,4.9275 is within 10m of another zone; lookups that round to it answer Europe/Amsterdam, even from across the border`: the entry has radius 0. Its whole key cell (about 11m) answers one zone. Printed on stderr, once per key, on every build whose points include one. Not an error, and not printed with `--check` or when you passed `--max-radius 0`.
 - `warning: 51.449039,4.930128 is in Europe/Brussels, but its key 51.4490,4.9301 is in Europe/Amsterdam; lookups there answer Europe/Amsterdam`: the input point is within a few meters of a border, across it from its rounded key. On stderr. Only points whose key is added in that run are compared, so a new point that shares an existing key is never checked. Move the coordinate onto the correct side if it matters.
+- `warning: points.csv has no points; zones.json answers nothing until it does`: the points file parsed but held no rows (a header alone, or `[]`). The table is still written, empty, so an import of it works from the first commit; but every lookup falls through to the raster until points are added. On stderr, exit 0.
 - `...and 12 more`: lists are cut at 20 lines.
 
 ## `tz-at-point check <zones.json> [--raster]`
@@ -69,7 +71,9 @@ Every error line starts with `tz-at-point: ` and exits 2.
 | Message | Cause |
 |---|---|
 | the usage text | Missing or extra arguments, or an unknown command |
-| `Unknown option '--x'. …` | A flag that doesn't exist |
+| `unknown option --x` followed by the usage text | A flag that doesn't exist |
+| `--max-radius needs a value` | An option given no value, or a value starting with `-` (write `--max-radius=…` for those) |
+| `--check does not take a value` | A boolean flag written as `--check=yes` |
 | `this command needs geo-tz 8 or later: npm install --save-dev geo-tz` | geo-tz missing or too old |
 | `zones.json: not valid JSON` | The file isn't JSON. Its content is never echoed. |
 | `points.txt: points must be a .json or .csv file` | Wrong extension |
@@ -87,7 +91,8 @@ Every error line starts with `tz-at-point: ` and exits 2.
 | `zones.json: entry "KEY" has radius 255; expected a multiple of 10 from 0 to 1000` | Bad radius |
 | `zones.json: unsupported version 2` | Not a v1 table |
 | `zones.json: must be a plain object` / `zones.json: points must be a plain object` | Not a table at all |
-| `ENOENT: …` / `EACCES: …` | File or directory missing or not writable; checked before any work starts |
+| `points.json: no such file or directory` / `is a directory` / `not a directory` / `permission denied` | The points file or table can't be read; the path is the one you passed |
+| `out: no such directory` / `not writable` | The directory the table would be written into doesn't exist or isn't writable; checked before any point is resolved |
 
 Paths and table content in messages are escaped to printable ASCII.
 

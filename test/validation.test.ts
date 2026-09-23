@@ -31,7 +31,7 @@ test('an unwritable output directory is refused by name, before any point is res
   try {
     const r = run('build', w.points, '-o', join(ro, 'zones.json'));
     assert.equal(r.status, 2);
-    assert.equal(r.stderr.trim(), `tz-at-point: EACCES: permission denied, access '${ro}'`);
+    assert.equal(r.stderr.trim(), `tz-at-point: ${ro}: not writable`);
   } finally {
     chmodSync(ro, 0o755);
   }

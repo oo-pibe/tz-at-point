@@ -95,6 +95,8 @@ const MESSAGES = [
   'expected [lat, lng] or { lat, lng }', 'CSV header must have lat and lng columns', 'unterminated quote',
   'lat and lng must be decimal numbers in range', 'is not a canonical point key', 'must map to [zone, radius]',
   'has an invalid zone name', 'has radius', 'unsupported version', 'must be a plain object',
+  'unknown option', 'needs a value', 'does not take a value', 'no such file or directory', 'no such directory',
+  'not writable', 'is a directory', 'not a directory', 'permission denied', 'has no points',
 ];
 
 test('the CLI reference covers every flag and every message', () => {

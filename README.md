@@ -171,6 +171,7 @@ Full detail: [API reference](https://github.com/oo-pibe/tz-at-point/blob/main/sk
 ```sh
 tz-at-point build <points.json|points.csv> -o <zones.json> [--check | --refresh] [--max-radius 250]
 tz-at-point check <zones.json> [--raster]
+tz-at-point --version
 ```
 
 `build` only adds points, never removes them, and leaves the file alone when there's nothing to add. `check --raster` reports what the raster alone would answer for your points. Parallel builds of the same table are safe. `--check` reports missing points without writing, and without needing geo-tz. `--refresh` re-resolves every entry after a geo-tz upgrade. `check` re-probes the table against the boundaries you have installed.
@@ -211,7 +212,7 @@ The rest, measured rather than asserted:
 | Startup | 55-70ms and ~18MB for 30,000 points spread worldwide |
 | Build | 2,218 geo-tz probes per point at the default radius, 8,357 at 500 |
 | Runtime dependencies | one, the raster; `tz-at-point/core` keeps it out of your bundle |
-| Tests | 125, including bundled runs with file reads denied and a lookup checked against a brute-force scan |
+| Tests | 130, including bundled runs with file reads denied and a lookup checked against a brute-force scan |
 
 Timings are from [`scripts/bench.mjs`](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/bench.mjs) on one machine, and startup in particular moves with how your points are spread. Run it on yours rather than trusting mine.
 

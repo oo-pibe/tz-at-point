@@ -5,7 +5,7 @@ import {
   realpathSync, renameSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
 import { basename, dirname, join, resolve as resolvePath } from 'node:path';
-import { parseArgs } from 'node:util';
+import { parseArgs, type ParseArgsOptionsConfig } from 'node:util';
 import { keyOf, parseKey } from './key.ts';
 import { pointsFromCsv, pointsFromJson, type Point } from './points.ts';
 import { resolve, type Find } from './radius.ts';
@@ -14,7 +14,40 @@ import { printable } from './text.ts';
 
 const USAGE = `usage:
   tz-at-point build <points.json|points.csv> -o <zones.json> [--check | --refresh] [--max-radius 250]
-  tz-at-point check <zones.json> [--raster]`;
+  tz-at-point check <zones.json> [--raster]
+  tz-at-point --version`;
+
+/** A mistake at the command line. Its message is tz-at-point's own multi-line text, so newlines survive printing. */
+class UsageError extends Error {}
+
+/**
+ * parseArgs with its errors rewritten. Node's own messages explain positionals and `--x=-y` syntax at
+ * length, one of them with an unterminated quote, and they would be printed under tz-at-point's name.
+ */
+function parse<const T extends ParseArgsOptionsConfig>(args: string[], options: T) {
+  try {
+    return parseArgs({ args, allowPositionals: true, options });
+  } catch (err) {
+    const { code, message } = err as { code?: string; message: string };
+    const option = /'(-[^' ]*)/.exec(message)?.[1] ?? 'an option';
+    if (code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') throw new UsageError(`unknown option ${option}\n${USAGE}`);
+    if (code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE') {
+      throw new UsageError(message.includes('does not take an argument') ? `${option} does not take a value` : `${option} needs a value`);
+    }
+    throw err;
+  }
+}
+
+const READ_FAILURES: Record<string, string> = {
+  ENOENT: 'no such file or directory', EISDIR: 'is a directory', ENOTDIR: 'not a directory', EACCES: 'permission denied', EPERM: 'permission denied',
+};
+const WRITE_FAILURES: Record<string, string> = { ...READ_FAILURES, ENOENT: 'no such directory', EACCES: 'not writable', EPERM: 'not writable' };
+
+/** A filesystem failure as a sentence about the user's path, not an errno and a syscall. */
+function described(err: unknown, path: string, reasons = READ_FAILURES): unknown {
+  const reason = reasons[(err as { code?: string }).code ?? ''];
+  return reason ? new Error(`${path}: ${reason}`) : err;
+}
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const verb = (n: number, singular: string, plural_: string) => (n === 1 ? singular : plural_);
@@ -53,7 +86,13 @@ async function loadFind(): Promise<Find> {
 }
 
 /** A file's text, without a byte-order mark. */
-const readText = (file: string) => readFileSync(file, 'utf8').replace(/^﻿/, '');
+function readText(file: string): string {
+  try {
+    return readFileSync(file, 'utf8').replace(/^﻿/, '');
+  } catch (err) {
+    throw described(err, file);
+  }
+}
 
 function readJson(file: string): unknown {
   const text = readText(file);
@@ -67,9 +106,11 @@ function readJson(file: string): unknown {
 
 function readPoints(file: string): Point[] {
   const lower = file.toLowerCase();
-  if (lower.endsWith('.json')) return pointsFromJson(readJson(file));
-  if (lower.endsWith('.csv')) return pointsFromCsv(readText(file));
-  throw new Error(`${file}: points must be a .json or .csv file`);
+  let points: Point[];
+  if (lower.endsWith('.json')) points = pointsFromJson(readJson(file));
+  else if (lower.endsWith('.csv')) points = pointsFromCsv(readText(file));
+  else throw new Error(`${file}: points must be a .json or .csv file`);
+  return points;
 }
 
 /** The real file behind `out` (following a symlink), after checking its directory is writable. */
@@ -77,7 +118,11 @@ function writableTarget(out: string): string {
   // A symlink is followed even when its target does not exist yet, so the link survives the write.
   const link = lstatSync(out, { throwIfNoEntry: false })?.isSymbolicLink() ? resolvePath(dirname(out), readlinkSync(out)) : out;
   const target = existsSync(link) ? realpathSync(link) : resolvePath(link);
-  accessSync(dirname(target), constants.W_OK);
+  try {
+    accessSync(dirname(target), constants.W_OK);
+  } catch (err) {
+    throw described(err, dirname(target), WRITE_FAILURES);
+  }
   return target;
 }
 
@@ -129,16 +174,12 @@ function tolerate(action: () => void): void {
 }
 
 async function build(args: string[]): Promise<number> {
-  const { values, positionals } = parseArgs({
-    args,
-    allowPositionals: true,
-    options: {
-      out: { type: 'string', short: 'o' },
-      check: { type: 'boolean' },
-      refresh: { type: 'boolean' },
-      'max-radius': { type: 'string', default: '250' },
-      help: { type: 'boolean', short: 'h' },
-    },
+  const { values, positionals } = parse(args, {
+    out: { type: 'string', short: 'o' },
+    check: { type: 'boolean' },
+    refresh: { type: 'boolean' },
+    'max-radius': { type: 'string', default: '250' },
+    help: { type: 'boolean', short: 'h' },
   });
   if (values.help) {
     console.log(USAGE);
@@ -146,7 +187,7 @@ async function build(args: string[]): Promise<number> {
   }
   const [input] = positionals;
   const { out } = values;
-  if (!input || !out || positionals.length > 1) throw new Error(USAGE);
+  if (!input || !out || positionals.length > 1) throw new UsageError(USAGE);
   if (values.check && values.refresh) throw new Error('--check and --refresh cannot be combined');
   const maxRadius = /^\d+$/.test(values['max-radius']) ? Number(values['max-radius']) : NaN;
   if (!isRadius(maxRadius)) throw new Error(`--max-radius must be a multiple of ${RADIUS_STEP} from 0 to ${MAX_RADIUS}`);
@@ -175,6 +216,9 @@ async function build(args: string[]): Promise<number> {
   }
 
   const warnings = new Set<string>();
+  // An empty table is a legitimate first commit, so it is written; but a header with no rows, or `[]`,
+  // is also what the wrong file looks like, and silence would send every lookup quietly to the raster.
+  if (points.length === 0) warnings.add(`warning: ${input} has no points; ${out} answers nothing until it does`);
   let geoTz: string | undefined;
   if (todo.size > 0 || !exists) {
     const target = writableTarget(out);
@@ -231,16 +275,12 @@ async function build(args: string[]): Promise<number> {
 }
 
 async function check(args: string[]): Promise<number> {
-  const { values, positionals } = parseArgs({
-    args,
-    allowPositionals: true,
-    options: { raster: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } },
-  });
+  const { values, positionals } = parse(args, { raster: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } });
   if (values.help) {
     console.log(USAGE);
     return 0;
   }
-  if (positionals.length !== 1) throw new Error(USAGE);
+  if (positionals.length !== 1) throw new UsageError(USAGE);
   const [file] = positionals;
   const raw = readJson(file);
   const entries = readTable(raw, file);
@@ -297,21 +337,27 @@ async function check(args: string[]): Promise<number> {
   return 1;
 }
 
+/** This package's own version, from the package.json one directory up from dist/ and from src/ alike. */
+const ownVersion = () => JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version as string;
+
 async function main([command, ...args]: string[]): Promise<number> {
   if (command === '--help' || command === '-h') {
     console.log(USAGE);
     return 0;
   }
+  if (command === '--version') {
+    console.log(ownVersion());
+    return 0;
+  }
   try {
     if (command === 'build') return await build(args);
     if (command === 'check') return await check(args);
-    throw new Error(USAGE);
+    throw new UsageError(USAGE);
   } catch (err) {
-    // Usage and parseArgs guidance are several lines of tz-at-point's own text, so keep their newlines.
-    // Everything else can carry a path or file content, where a newline would forge a log line.
+    // A usage error is several lines of tz-at-point's own text, so its newlines are kept. Every other
+    // message can carry a path or file content, where a newline would forge a log line.
     const message = err instanceof Error ? err.message : String(err);
-    const ours = message === USAGE || String((err as { code?: string }).code).startsWith('ERR_PARSE_ARGS');
-    console.error(`tz-at-point: ${printable(message, ours)}`);
+    console.error(`tz-at-point: ${printable(message, err instanceof UsageError)}`);
     return 2;
   }
 }

@@ -344,3 +344,60 @@ test('--help works on subcommands, and extensions are case-insensitive', () => {
   const w = workspace(LANDMARKS.slice(0, 1), 'POINTS.JSON');
   assert.equal(run('build', w.points, '-o', w.out).status, 0);
 });
+
+// Messages a user sees for mistakes at the command line are tz-at-point's own sentences,
+// not Node's parseArgs guidance or a raw errno.
+
+test('--version prints the package version and nothing else', () => {
+  const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const r = run('--version');
+  assert.equal(r.status, 0);
+  assert.equal(r.stdout, `${version}\n`);
+  assert.equal(r.stderr, '');
+});
+
+test('an unknown option is named in one line, then usage', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  const r = run('build', w.points, '-o', w.out, '--frobnicate');
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /^tz-at-point: unknown option --frobnicate\n/);
+  assert.match(r.stderr, /usage:/);
+  assert.doesNotMatch(r.stderr, /positional|To specify/);
+});
+
+test('an option missing its value, or a boolean given one, says so plainly', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  const missing = run('build', w.points, '-o', w.out, '--max-radius', '-5');
+  assert.equal(missing.status, 2);
+  assert.match(missing.stderr, /^tz-at-point: --max-radius needs a value/);
+  assert.doesNotMatch(missing.stderr, /ambiguous|XYZ/);
+  const extra = run('build', w.points, '-o', w.out, '--check=yes');
+  assert.equal(extra.status, 2);
+  assert.match(extra.stderr, /^tz-at-point: --check does not take a value/);
+});
+
+test('a missing input file, an output in a missing directory, and a directory as output are sentences', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  const missing = run('build', join(w.dir, 'nope.json'), '-o', w.out);
+  assert.equal(missing.status, 2);
+  assert.match(missing.stderr, /^tz-at-point: .*nope\.json: no such file or directory\n$/);
+  assert.doesNotMatch(missing.stderr, /ENOENT/);
+  const noDir = run('build', w.points, '-o', join(w.dir, 'does', 'not', 'exist', 'zones.json'));
+  assert.equal(noDir.status, 2);
+  assert.match(noDir.stderr, /^tz-at-point: .*does\/not\/exist: no such directory\n$/);
+  assert.doesNotMatch(noDir.stderr, /ENOENT|access/);
+  const isDir = run('build', w.points, '-o', w.dir);
+  assert.equal(isDir.status, 2);
+  assert.match(isDir.stderr, /^tz-at-point: .*: is a directory\n$/);
+  assert.doesNotMatch(isDir.stderr, /EISDIR|illegal/);
+});
+
+test('a points file with no points still builds, but says so on stderr', () => {
+  for (const [content, name] of [['lat,lng\n', 'points.csv'], ['[]', 'points.json']] as const) {
+    const w = workspace(content, name);
+    const r = run('build', w.points, '-o', w.out);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stderr, new RegExp(`^warning: .*${name} has no points; .*zones\\.json answers nothing until it does\\n$`));
+    assert.deepEqual(readOut(w.out), {});
+  }
+});
