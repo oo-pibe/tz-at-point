@@ -90,6 +90,7 @@ Every error line starts with `tz-at-point: ` and exits 2.
 | `zones.json: entry "KEY" has an invalid zone name` | Zone isn't an IANA-style name |
 | `zones.json: entry "KEY" has radius 255; expected a multiple of 10 from 0 to 1000` | Bad radius |
 | `zones.json: unsupported version 2` | Not a v1 table |
+| `zones.json: attribution must be a string` | The optional `attribution` field was hand-edited into something other than text |
 | `zones.json: must be a plain object` / `zones.json: points must be a plain object` | Not a table at all |
 | `points.json: no such file or directory` / `is a directory` / `not a directory` / `permission denied` | The points file or table can't be read; the path is the one you passed |
 | `out: no such directory` / `not writable` | The directory the table would be written into doesn't exist or isn't writable; checked before any point is resolved |

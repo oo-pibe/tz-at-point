@@ -6,11 +6,23 @@
 //
 // Method: sample points uniformly by area (lat = asin(U), not uniform lat, or
 // the poles are oversampled), drop anything geo-tz answers with an Etc/* ocean
-// zone, and compare the raster's zone to geo-tz's by UTC offset in January and
-// July. Offset rather than name, because two names can keep the same clock and
-// a user only notices a difference in the hour shown.
+// zone or an Antarctica/* one, and compare the raster's zone to geo-tz's by UTC
+// offset in January and July. Offset rather than name, because two names can
+// keep the same clock and a user only notices a difference in the hour shown.
+// Where geo-tz returns several zones (disputed areas: Xinjiang, Hebron, Abyei)
+// the raster is right if its clock matches any of them. The generator is seeded,
+// so the same sample count reproduces the same figures.
 import { find } from 'geo-tz/all';
 import tzlookup from '@photostructure/tz-lookup';
+
+// mulberry32; Math.random cannot be seeded and "run it yourself" should reproduce.
+let seed = 2026;
+const random = () => {
+  seed = (seed + 0x6d2b79f5) | 0;
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
 
 const REGIONS = {
   world: { lat: [-90, 90], lng: [-180, 180] },
@@ -39,13 +51,14 @@ for (const [name, box] of Object.entries(REGIONS)) {
   let land = 0;
   let wrong = 0;
   while (land < samples) {
-    const lat = Math.asin(s0 + Math.random() * (s1 - s0)) * DEG;
-    const lng = box.lng[0] + Math.random() * (box.lng[1] - box.lng[0]);
-    const truth = find(lat, lng)[0];
-    if (!truth || truth.startsWith('Etc/')) continue; // ocean
+    const lat = Math.asin(s0 + random() * (s1 - s0)) * DEG;
+    const lng = box.lng[0] + random() * (box.lng[1] - box.lng[0]);
+    const zones = find(lat, lng);
+    if (zones.length === 0 || /^(Etc|Antarctica)\//.test(zones[0])) continue; // ocean, ice
     land++;
     const guess = tzlookup(lat, lng);
-    if (offset(truth, JAN) !== offset(guess, JAN) || offset(truth, JUL) !== offset(guess, JUL)) wrong++;
+    const agrees = zones.some((z) => offset(z, JAN) === offset(guess, JAN) && offset(z, JUL) === offset(guess, JUL));
+    if (!agrees) wrong++;
   }
   console.log(`${name.padEnd(14)} ${((wrong / land) * 100).toFixed(2)}% wrong offset  (${wrong}/${land})`);
 }

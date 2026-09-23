@@ -72,7 +72,7 @@ const slug = (heading: string) => heading.toLowerCase().replace(/[^\w\- ]/g, '')
  * no anchor. Docs here quote whole markdown files, so this is not hypothetical:
  * the table of contents once linked to a heading that only existed in a sample.
  */
-const withoutFences = (markdown: string) => markdown.replace(/^```[\s\S]*?^```/gm, '');
+const withoutFences = (markdown: string) => markdown.replace(/^(```|~~~)[\s\S]*?^\1/gm, '');
 
 test('every in-page anchor link points at a heading that still exists', () => {
   for (const file of docs()) {
@@ -96,7 +96,7 @@ const MESSAGES = [
   'lat and lng must be decimal numbers in range', 'is not a canonical point key', 'must map to [zone, radius]',
   'has an invalid zone name', 'has radius', 'unsupported version', 'must be a plain object',
   'unknown option', 'needs a value', 'does not take a value', 'no such file or directory', 'no such directory',
-  'not writable', 'is a directory', 'not a directory', 'permission denied', 'has no points',
+  'not writable', 'is a directory', 'not a directory', 'permission denied', 'has no points', 'attribution must be a string',
 ];
 
 test('the CLI reference covers every flag and every message', () => {

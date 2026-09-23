@@ -32,6 +32,7 @@ for (let made = 0; made < entries; ) {
 const table = { v: 1, maxRadius: 250, points };
 const keys = Object.keys(points).map((k) => k.split(',').map(Number));
 
+if (!global.gc) console.log('(run with --expose-gc for a heap figure that is not at the mercy of when GC happened to run)\n');
 const startups = [];
 let heap = 0;
 for (let i = 0; i < 6; i++) {

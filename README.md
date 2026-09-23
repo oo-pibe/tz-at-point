@@ -44,7 +44,7 @@ On Lambda you can do exactly that, and people do: copy the directory into a laye
 | Tornio, Finland | 65.8481, 24.1466 | Europe/Stockholm | Europe/Helsinki | 1 hour |
 | Tabatinga, Brazil | -4.2527, -69.9381 | America/Eirunepe | America/Manaus | 1 hour |
 
-[Its own README](https://github.com/photostructure/tz-lookup) puts the disagreement with geo-tz at ~10% of likely-inhabited points, ~5% even after forgiving zones whose clocks match. Measured a different way, at points sampled uniformly by area on land, it returns a zone with the wrong UTC offset for **3.4% of the world**, 3.5% of North America and 1.4% of Europe ([the script](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/raster-disagreement.mjs), 60,000 samples per region, run it yourself).
+[Its own README](https://github.com/photostructure/tz-lookup) puts the disagreement with geo-tz at ~10% of likely-inhabited points, ~5% even after forgiving zones whose clocks match. Measured a different way, at points sampled uniformly by area on land outside Antarctica, it returns a zone with the wrong UTC offset for **3.0% of the world**, 3.4% of North America and 1.5% of Europe ([the script](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/raster-disagreement.mjs) is seeded; `node scripts/raster-disagreement.mjs 60000` reproduces those figures, and where geo-tz names several zones for a disputed area the raster is counted right if it matches any of them).
 
 So the usual choice is: exact, but heavy and tied to a filesystem, or light and portable, but approximate. ([tzf-wasm](#prior-art) sits between them: simplified polygons in a 4MB wasm asset, exact except within about 110m of a border.)
 
@@ -208,15 +208,15 @@ The rest, measured rather than asserted:
 
 | | |
 |---|---|
-| Lookup | ~380ns from the table, ~550ns through the raster |
-| Startup | 55-70ms and ~18MB for 30,000 points spread worldwide |
-| Build | 2,218 geo-tz probes per point at the default radius, 8,357 at 500 |
+| Lookup | 380-410ns from the table, 550ns and up through the raster |
+| Startup | 55-85ms and ~17MB for 30,000 points spread worldwide |
+| Build | 2,218 geo-tz probes around each point at the default radius, 8,357 at 500, plus one for the point itself |
 | Runtime dependencies | one, the raster; `tz-at-point/core` keeps it out of your bundle |
-| Tests | 130, including bundled runs with file reads denied and a lookup checked against a brute-force scan |
+| Tests | 131, including bundled runs with file reads denied and a lookup checked against a brute-force scan |
 
-Timings are from [`scripts/bench.mjs`](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/bench.mjs) on one machine, and startup in particular moves with how your points are spread. Run it on yours rather than trusting mine.
+Timings are from [`scripts/bench.mjs`](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/bench.mjs) on one quiet Apple-silicon machine under Node 25 on 2026-09-23; a reviewer's runs on a loaded machine came out two to three times slower, and startup moves with how your points are spread. Run it on yours (`node --expose-gc scripts/bench.mjs`) rather than trusting mine.
 
-During development the radius prober was also fuzzed differentially against geo-tz, and the suite was checked with mutation testing. Neither runs in CI. The fuzzer's one real find was a radius that could over-claim about 124m from its key; [`test/radius.test.ts`](https://github.com/oo-pibe/tz-at-point/blob/main/test/radius.test.ts) keeps that case.
+During development the radius prober was also fuzzed differentially against geo-tz, and the suite was checked with mutation testing. Neither runs in CI. The fuzzer's one real find was a lobe of another zone dipping a metre or so inside a stored 130m radius, between the rings the prober sampled; [`test/radius.test.ts`](https://github.com/oo-pibe/tz-at-point/blob/main/test/radius.test.ts) keeps that case.
 
 ## Keeping the table current
 
@@ -291,7 +291,9 @@ This package ships no OpenStreetMap data of its own. geo-tz is an optional peer 
 | | Packages | Maintainer accounts | Size |
 |---|---|---|---|
 | Runtime (what your app installs) | 2, including this one | 1 | ~180KB |
-| Build time, with geo-tz | 29 more | 62 more | 74MB |
+| Build time, with geo-tz | 29 more | 63 more | 74MB |
+
+Maintainer accounts are the distinct npm accounts that `npm view <package> maintainers` lists across each tree, counted on 2026-09-23. They move.
 
 The CLI loads geo-tz through a dynamic import, so it never enters a consumer's runtime graph. If you only need the table, `npm install --save-dev geo-tz` on the machine that builds it and nothing else inherits that footprint.
 

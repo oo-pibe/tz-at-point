@@ -67,3 +67,11 @@ test('formats one sorted entry per line and round-trips', () => {
   assert.equal(readTable(JSON.parse(text)).length, 2);
   assert.deepEqual(readTable(JSON.parse(formatTable(new Map(), 250))), []);
 });
+
+test('attribution is optional, but if present it must be text, as the type says', () => {
+  assert.equal(readTable({ v: 1, attribution: 'ODbL, see README', points: {} }).length, 0);
+  assert.equal(readTable({ v: 1, points: {} }).length, 0);
+  for (const bad of [42, null, { a: 1 }, ['x']]) {
+    assert.throws(() => readTable({ v: 1, attribution: bad, points: {} }), /attribution must be a string/, JSON.stringify(bad));
+  }
+});

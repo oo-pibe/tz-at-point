@@ -52,6 +52,7 @@ export function readTable(table: unknown, name = 'tz-at-point table'): Entry[] {
   }
   if (!Object.hasOwn(table, 'v') || table.v !== 1) throw new TypeError(`${name}: unsupported version ${quote(table.v)}`);
   if (!Object.hasOwn(table, 'points') || !isPlainObject(table.points)) throw new TypeError(`${name}: points must be a plain object`);
+  if (Object.hasOwn(table, 'attribution') && typeof table.attribution !== 'string') throw new TypeError(`${name}: attribution must be a string`);
 
   const zones = new Set<unknown>(); // valid names already seen: a table repeats a few hundred at most
   const entries: Entry[] = [];

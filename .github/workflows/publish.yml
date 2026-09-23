@@ -28,10 +28,13 @@ jobs:
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
-      # Publishing a version nobody tagged is worse than publishing nothing.
-      - name: The release tag must match package.json
-        if: github.event_name == 'release'
+      # Publishing a version nobody tagged is worse than publishing nothing. A
+      # release event always arrives on its tag; a manual dispatch must be run
+      # from a tag too (the UI offers them), never from a branch.
+      - name: The tag being published must match package.json
         run: |
+          test "$GITHUB_REF_TYPE" = tag \
+            || { echo "run this from the release tag, not from branch $GITHUB_REF_NAME"; exit 1; }
           tagged="${GITHUB_REF_NAME#v}"
           declared="$(node -p 'require("./package.json").version')"
           test "$tagged" = "$declared" \
