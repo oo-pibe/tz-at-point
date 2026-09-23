@@ -35,7 +35,7 @@ Error: ENOENT: no such file or directory, open
   '/var/task/node_modules/geo-tz/data/timezones-1970.geojson.geo.dat'
 ```
 
-On Lambda you can do exactly that, and people do: copy the directory into a layer and set the variable, at about 70MB against the 250MB unzipped limit. On an edge runtime you can't, because there is no filesystem to point it at.
+On Lambda you can do exactly that, and people do: copy the directory into a layer and set the variable, at 74MB against the 250MB unzipped limit. On an edge runtime you can't, because there is no filesystem to point it at.
 
 **[@photostructure/tz-lookup](https://github.com/photostructure/tz-lookup) reads no files.** It's 73KB of JavaScript, 74KB once bundled, and works anywhere. It's also approximate, and near a border the neighbour often keeps different clocks:
 
@@ -46,14 +46,14 @@ On Lambda you can do exactly that, and people do: copy the directory into a laye
 
 [Its own README](https://github.com/photostructure/tz-lookup) puts the disagreement with geo-tz at ~10% of likely-inhabited points, ~5% even after forgiving zones whose clocks match. Measured a different way, at points sampled uniformly by area on land, it returns a zone with the wrong UTC offset for **3.4% of the world**, 3.5% of North America and 1.4% of Europe ([the script](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/raster-disagreement.mjs), 60,000 samples per region, run it yourself).
 
-So the usual choice is: exact, but heavy and tied to a filesystem, or light and portable, but approximate. ([tzf and tzf-wasm](#prior-art) are a third answer, carrying compressed polygons into wasm.)
+So the usual choice is: exact, but heavy and tied to a filesystem, or light and portable, but approximate. ([tzf-wasm](#prior-art) sits between them: simplified polygons in a 4MB wasm asset, exact except within about 110m of a border.)
 
 **Your venues, stores or depots are a fixed list.** Resolve them once, at build time, with the exact polygons, and the choice disappears: exact answers, no polygons shipped, nothing read at runtime.
 
 | | geo-tz | tz-lookup (raster) | hosted API | tz-at-point |
 |---|---|---|---|---|
 | Accuracy at your points | exact | ~5–10% wrong | exact | **exact** (it is geo-tz, at build time) |
-| Adds to your bundle | 30MB `data/`, shipped beside it | 74KB | — | **77KB, or 3KB via `/core`** + ~50 bytes per point |
+| Adds to your bundle | 74MB `data/`, shipped beside it | 74KB | — | **77KB, or 3KB via `/core`** + ~50 bytes per point |
 | Reads files at runtime | yes | no | no | **no** |
 | Works on edge runtimes | no | yes | yes | **yes** |
 | Answers any coordinate | yes | yes | yes | your points exactly, everything else via the raster |
@@ -84,11 +84,11 @@ Build resolves each point with geo-tz, then probes the ground around it on a ~10
 
 Everything else in this space answers "any point on Earth, at runtime", and carries a global dataset to do it. The interesting ones:
 
-- **[tzf](https://github.com/ringsaturn/tzf)** and **[tzf-wasm](https://github.com/ringsaturn/tzf-wasm)** carry compressed polygons and run them in wasm, so they are polygon-accurate with no filesystem. That is the closest architecture to this one, and on an edge runtime it may be the better fit: it answers anywhere, where this package is exact only at points you resolved. It is also a wasm module in your bundle rather than a JSON table in your diff.
+- **[tzf-wasm](https://github.com/ringsaturn/tzf-wasm)**, the wasm build of the Rust port of **[tzf](https://github.com/ringsaturn/tzf)** (Go). It carries simplified boundary polygons in a separate 4MB `.wasm` asset, loaded by `fetch` with no filesystem, and answers any coordinate. Its bundled dataset is the simplified one: [its own accuracy notes](https://github.com/ringsaturn/tzf#accuracy) put boundaries within about 110m of the full-precision border, which is exactly the strip where this package spends its effort. On an edge runtime that needs arbitrary coordinates it is the better fit; for a fixed list of points near borders, it is not exact and this is.
 - **geo-tz** itself, if you can ship its `data/` directory and set `GEO_TZ_DATA_PATH`.
 - **[@photostructure/tz-lookup](https://github.com/photostructure/tz-lookup)**, the maintained raster, which this package uses as its fallback.
 
-People have asked geo-tz for a smaller dataset for years: in 2018 its maintainer reopened [an issue about shipping a subset](https://github.com/evansiroky/node-geo-tz/issues/75) to say "that'd make a good feature… I'm open to receiving a PR", and closed it four months later with a commit that added in-memory caching of lookup areas rather than a smaller download. [A Lambda user asking the same in 2024](https://github.com/evansiroky/node-geo-tz/issues/170) has no reply. Narrowing the *dataset* is what people ask for; resolving a *known point set* instead is the answer I could not find packaged anywhere, so people write the same script by hand: resolve the points with geo-tz in `scripts/`, commit the JSON, keep geo-tz out of `src/`.
+People have asked geo-tz for a smaller dataset for years: in 2018 its maintainer reopened [an issue about shipping a subset](https://github.com/evansiroky/node-geo-tz/issues/75) to say "that'd make a good feature… I'm open to receiving a PR", and closed it two and a half months later with a commit that added in-memory caching of lookup areas rather than a smaller download. [A Lambda user asking the same in 2024](https://github.com/evansiroky/node-geo-tz/issues/170) has had no reply from the maintainer. Narrowing the *dataset* is what people ask for; resolving a *known point set* instead is the answer I could not find packaged anywhere, so people write the same script by hand: resolve the points with geo-tz in `scripts/`, commit the JSON, keep geo-tz out of `src/`.
 
 This is that script, made reliable: probed radii so nearby coordinates still resolve, a `check` command for CI, and the geo-tz version recorded in the table.
 
@@ -99,7 +99,7 @@ npm install tz-at-point
 npm install --save-dev geo-tz   # only to build and check the table
 ```
 
-Node 20.19+ or 22.12+. The published types work with TypeScript 5.0 and later.
+Node 20.19+ or 22.12+ (the built package is tested on 20.19.0 in CI, though Node 20 has been end-of-life since April 2026). The published types work with TypeScript 5.0 and later.
 
 ## Quick start
 
@@ -220,7 +220,7 @@ During development the radius prober was also fuzzed differentially against geo-
 
 ## Keeping the table current
 
-Timezone boundaries ship 2–4 times a year, and occasionally a zone genuinely changes: `America/Coyhaique` was carved out of `America/Santiago` in 2025b, `Asia/Choibalsan` became an alias for `Asia/Ulaanbaatar` in 2024b. A committed table can go stale, so it says what produced it:
+Timezone boundaries ship a few times a year (five releases so far in 2026), and occasionally a zone genuinely changes: `America/Coyhaique` was carved out of `America/Santiago` in 2025b, `Asia/Choibalsan` became an alias for `Asia/Ulaanbaatar` in 2024b. A committed table can go stale, so it says what produced it:
 
 ```json
 { "v": 1, "attribution": "…OpenStreetMap…ODbL 1.0…", "geoTz": "8.1.9", "maxRadius": 250, "points": { … } }
