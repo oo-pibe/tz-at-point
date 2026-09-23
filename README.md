@@ -258,6 +258,10 @@ Under `module: nodenext`, add `with { type: 'json' }` (TypeScript 5.3+) and `"re
 
 Something else reads a file at runtime, usually a data file loaded with `readFileSync`. Import it as JSON as well.
 
+### esbuild says `Could not resolve "@photostructure/tz-lookup"`
+
+Only with `--platform=neutral`, which ignores `main` fields, and the raster declares nothing else. Neither wrangler nor Vercel's edge bundler uses that platform. If you set it yourself, add `--main-fields=module,main`, or import `tz-at-point/core`, which has no raster to resolve.
+
 ## FAQ
 
 **Does this replace geo-tz?** No. It uses geo-tz at build time, where reading 30MB of polygons costs nothing, and keeps it out of your deployment.

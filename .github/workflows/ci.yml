@@ -73,3 +73,30 @@ jobs:
           node --version
           node smoke.mjs
           ./node_modules/.bin/tz-at-point --help > /dev/null
+
+  # The README says the runtime works on edge runtimes and reads no files.
+  # bundle.test.ts checks that under Node's permission model; this checks it
+  # the way wrangler and Vercel build (esbuild, platform browser) and runs the
+  # result under Deno with every permission denied, which is as close to a
+  # Workers sandbox as a runner gets without one.
+  edge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.x
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - name: The browser bundle runs with every Deno permission denied
+        run: |
+          npx esbuild test/smoke.mjs --bundle --format=esm --platform=browser \
+            --alias:tz-at-point=./dist/index.js --alias:tz-at-point/core=./dist/lookup.js \
+            --outfile="$RUNNER_TEMP/edge.mjs"
+          deno run --no-prompt --deny-read --deny-env --deny-net --deny-sys "$RUNNER_TEMP/edge.mjs"
