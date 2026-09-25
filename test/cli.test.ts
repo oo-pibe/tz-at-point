@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, lstatSync, mkdtempSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, lstatSync, mkdtempSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -447,4 +447,15 @@ test('symlink loops and a file where a directory should be are sentences, and a 
   assert.equal(notDir.status, 2);
   assert.match(notDir.stderr, /^tz-at-point: .*points\.json\/zones\.json: not a directory\n$/);
   assert.doesNotMatch(notDir.stderr, /ENOTDIR|lstat/);
+});
+
+test('--version reads the version from the package.json above src/, not from a constant', () => {
+  // The package is at 1.0.0, so only a copy of src/ under a package.json that says something else
+  // can tell a real read from a hard-coded string. Found by mutation testing.
+  const dir = mkdtempSync(join(tmpdir(), 'tz-at-point-version-'));
+  cpSync(new URL('../src/', import.meta.url).pathname, join(dir, 'src'), { recursive: true });
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ type: 'module', version: '0.0.0-probe' }));
+  const r = spawnSync(process.execPath, [join(dir, 'src', 'cli.ts'), '--version'], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout, '0.0.0-probe\n');
 });

@@ -41,9 +41,14 @@ test('probes fill every ring up to max, ~10m apart the whole way round', () => {
   }
 });
 
-test('a border exactly at max is seen, so the stored radius stops two rings short of it', () => {
+test('a border exactly at max is seen by the ring probed beyond max, so the stored radius stops short of it', () => {
   const [edge] = destination(40, 0, 250, 0);
-  assert.equal(safeRadius((lat: number) => (lat >= edge ? 'Zone/B' : 'Zone/A'), 40, 0, 'Zone/A', 250), 230);
+  const find = (lat: number) => (lat >= edge ? 'Zone/B' : 'Zone/A');
+  // Rings start at rotated bearings, so no probe on the 250m ring lands exactly on the border; the
+  // 260m ring is the first to cross it, and the radius stops a full ring inside that: 240, not 250.
+  // (Before the rotation the 250m ring's bearing-0 probe sat on the line itself, giving 230.)
+  assert.equal(safeRadius(find, 40, 0, 'Zone/A', 250), 240);
+  for (let bearing = 0; bearing < 360; bearing += 5) assert.equal(find(destination(40, 0, 240, bearing)[0]), 'Zone/A', `${bearing}°`);
 });
 
 // ---------- lookup.ts: radius boundary, ties, grid margin ----------
