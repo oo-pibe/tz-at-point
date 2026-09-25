@@ -45,7 +45,7 @@ Paths and table content in messages are escaped to printable ASCII. Only the usa
 - `warning: 51.4394,4.9275 is within 10m of another zone; lookups that round to it answer Europe/Amsterdam, even from across the border`: the entry has radius 0. Its whole key cell (about 11m) answers one zone. Printed on stderr, once per key, on every build whose points include one. Not an error, and not printed with `--check` or when you passed `--max-radius 0`.
 - `warning: 51.449039,4.930128 is in Europe/Brussels, but its key 51.4490,4.9301 is in Europe/Amsterdam; lookups there answer Europe/Amsterdam`: the input point is within a few metres of a border, across it from its rounded key. On stderr. Only points whose key is added in that run are compared, so a new point that shares an existing key is never checked. Move the coordinate onto the correct side if it matters.
 - `warning: zones.json still records geo-tz 8.1.9; new points were resolved with 8.2.0; run --refresh to re-resolve the rest`: the installed geo-tz is newer than the one the table records, and this build only resolved the points that were missing. The table keeps the older version, because most of its entries were produced by it. `--refresh` re-resolves everything and records the new one. On stderr, exit 0.
-- `warning: points.csv has no points, so zones.json answers nothing`: the points file parsed but held no rows (a header alone, or `[]`). The table is still written, empty, so an import of it works from the first commit; but every lookup falls through to the raster until points are added. On stderr, exit 0.
+- `warning: points.csv has no points, so zones.json answers nothing`: the points file parsed but held no rows (a header alone, or `[]`) and the table has no entries either. The table is still written, empty, so an import of it works from the first commit; but every lookup falls through to the raster until points are added. Not printed when the table already has entries, or with `--check`. On stderr, exit 0.
 - `...and 12 more`: lists are cut at 20 lines.
 
 ## `tz-at-point check <zones.json> [--raster]`
@@ -93,8 +93,8 @@ Every error line starts with `tz-at-point: ` and exits 2.
 | `zones.json: unsupported version 2` | Not a v1 table |
 | `zones.json: attribution must be a string` | The optional `attribution` field was hand-edited into something other than text |
 | `zones.json: must be a plain object` / `zones.json: points must be a plain object` | Not a table at all |
-| `points.json: no such file or directory` / `is a directory` / `not a directory` / `permission denied` | The points file or table can't be read; the path is the one you passed |
-| `out: no such directory` / `not writable` | The directory the table would be written into doesn't exist or isn't writable; checked before any point is resolved |
+| `points.json: no such file or directory` / `is a directory` / `not a directory` / `permission denied` / `symlink loop` / `name too long` | The points file or table can't be read, or the output path can't be examined; the path is the one you passed |
+| `/abs/dir: no such directory` / `not writable` | The directory the table would be written into doesn't exist or isn't writable; checked before any point is resolved. This one names the directory as resolved: absolute, and with a symlinked output followed to where it points |
 
 Paths and table content in messages are escaped to printable ASCII.
 

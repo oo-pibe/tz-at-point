@@ -401,3 +401,50 @@ test('a points file with no points still builds, but says so on stderr', () => {
     assert.deepEqual(readOut(w.out), {});
   }
 });
+
+test('an unknown option cannot smuggle a newline into the log', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  const r = run('build', w.points, '-o', w.out, '--a\nERROR: forged line');
+  assert.equal(r.status, 2);
+  // The option name ends at the first whitespace; nothing after it is echoed at all.
+  assert.match(r.stderr, /^tz-at-point: unknown option --a\nusage:/);
+  assert.doesNotMatch(r.stderr, /ERROR|forged/);
+});
+
+test('a missing or surplus value names the long option, without the short alias and its comma', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  assert.match(run('build', w.points, '-o').stderr, /^tz-at-point: --out needs a value\n$/);
+  assert.match(run('build', w.points, '--out').stderr, /^tz-at-point: --out needs a value\n$/);
+  assert.match(run('build', w.points, '-o', w.out, '--help=yes').stderr, /^tz-at-point: --help does not take a value\n$/);
+  assert.match(run('check', w.out, '--help=1').stderr, /^tz-at-point: --help does not take a value\n$/);
+});
+
+test('an empty points file only warns when the table is empty too', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  assert.equal(run('build', w.points, '-o', w.out).status, 0);
+  writeFileSync(w.points, '[]');
+  const kept = run('build', w.points, '-o', w.out);
+  assert.equal(kept.status, 0);
+  assert.equal(kept.stderr, '', 'a populated table still answers; nothing to warn about');
+  assert.equal(readOut(w.out)['51.5561,-0.2794'][0], 'Europe/London');
+  const refreshed = run('build', w.points, '-o', w.out, '--refresh');
+  assert.equal(refreshed.status, 0);
+  assert.equal(refreshed.stderr, '');
+});
+
+test('symlink loops and a file where a directory should be are sentences, and a loop is never overwritten', () => {
+  const w = workspace(LANDMARKS.slice(0, 1));
+  const loop = join(w.dir, 'loop.json');
+  symlinkSync('loop.json', loop);
+  const asInput = run('build', loop, '-o', w.out);
+  assert.equal(asInput.status, 2);
+  assert.match(asInput.stderr, /^tz-at-point: .*loop\.json: symlink loop\n$/);
+  const asOutput = run('build', w.points, '-o', loop);
+  assert.equal(asOutput.status, 2, 'must not replace the loop with a table');
+  assert.match(asOutput.stderr, /^tz-at-point: .*loop\.json: symlink loop\n$/);
+  assert.ok(lstatSync(loop).isSymbolicLink(), 'the loop is still a symlink');
+  const notDir = run('build', w.points, '-o', join(w.points, 'zones.json'));
+  assert.equal(notDir.status, 2);
+  assert.match(notDir.stderr, /^tz-at-point: .*points\.json\/zones\.json: not a directory\n$/);
+  assert.doesNotMatch(notDir.stderr, /ENOTDIR|lstat/);
+});

@@ -29,7 +29,10 @@ function parse<const T extends ParseArgsOptionsConfig>(args: string[], options: 
     return parseArgs({ args, allowPositionals: true, options });
   } catch (err) {
     const { code, message } = err as { code?: string; message: string };
-    const option = /'(-[^' ]*)/.exec(message)?.[1] ?? 'an option';
+    // Node quotes the option as '-o, --out <value>' or '--frobnicate'. Name the long form; and the
+    // unknown-option text is the user's own, so it is escaped before it joins a multi-line message.
+    const quoted = /'([^']*)'/.exec(message)?.[1] ?? '';
+    const option = printable(/--[^\s,]+/.exec(quoted)?.[0] ?? /-[^\s,]+/.exec(quoted)?.[0] ?? 'an option');
     if (code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') throw new UsageError(`unknown option ${option}\n${USAGE}`);
     if (code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE') {
       throw new UsageError(message.includes('does not take an argument') ? `${option} does not take a value` : `${option} needs a value`);
@@ -40,6 +43,7 @@ function parse<const T extends ParseArgsOptionsConfig>(args: string[], options: 
 
 const READ_FAILURES: Record<string, string> = {
   ENOENT: 'no such file or directory', EISDIR: 'is a directory', ENOTDIR: 'not a directory', EACCES: 'permission denied', EPERM: 'permission denied',
+  ELOOP: 'symlink loop', ENAMETOOLONG: 'name too long',
 };
 const WRITE_FAILURES: Record<string, string> = { ...READ_FAILURES, ENOENT: 'no such directory', EACCES: 'not writable', EPERM: 'not writable' };
 
@@ -115,9 +119,16 @@ function readPoints(file: string): Point[] {
 
 /** The real file behind `out` (following a symlink), after checking its directory is writable. */
 function writableTarget(out: string): string {
-  // A symlink is followed even when its target does not exist yet, so the link survives the write.
-  const link = lstatSync(out, { throwIfNoEntry: false })?.isSymbolicLink() ? resolvePath(dirname(out), readlinkSync(out)) : out;
-  const target = existsSync(link) ? realpathSync(link) : resolvePath(link);
+  let target: string;
+  try {
+    // A symlink is followed even when its target does not exist yet, so the link survives the write.
+    const link = lstatSync(out, { throwIfNoEntry: false })?.isSymbolicLink() ? resolvePath(dirname(out), readlinkSync(out)) : out;
+    // statSync rather than existsSync: existsSync answers false to a symlink loop, and the write
+    // would then land on the loop itself.
+    target = statSync(link, { throwIfNoEntry: false }) ? realpathSync(link) : resolvePath(link);
+  } catch (err) {
+    throw described(err, out);
+  }
   try {
     accessSync(dirname(target), constants.W_OK);
   } catch (err) {
@@ -218,7 +229,8 @@ async function build(args: string[]): Promise<number> {
   const warnings = new Set<string>();
   // An empty table is a legitimate first commit, so it is written; but a header with no rows, or `[]`,
   // is also what the wrong file looks like, and silence would send every lookup quietly to the raster.
-  if (points.length === 0) warnings.add(`warning: ${input} has no points, so ${out} answers nothing`);
+  // A table that already has entries keeps answering them, so there is nothing to warn about then.
+  if (points.length === 0 && table.size === 0) warnings.add(`warning: ${input} has no points, so ${out} answers nothing`);
   let geoTz: string | undefined;
   if (todo.size > 0 || !exists) {
     const target = writableTarget(out);

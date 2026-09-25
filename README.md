@@ -212,7 +212,7 @@ Measured on 2026-09-23:
 | Startup | 55-85ms and ~17MB for 30,000 points spread worldwide |
 | Build | 2,218 geo-tz probes around each point at the default radius, 8,357 at 500, plus one for the point itself |
 | Runtime dependencies | one, the raster; `tz-at-point/core` keeps it out of your bundle |
-| Tests | 131, including bundled runs with file reads denied and a lookup checked against a brute-force scan |
+| Tests | 136, including bundled runs with file reads denied and a lookup checked against a brute-force scan |
 
 Timings are from [`scripts/bench.mjs`](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/bench.mjs) on one quiet Apple-silicon machine under Node 25; one reviewer's runs on a loaded machine came out two to three times slower, and startup moves with how your points are spread. Run it on yours (`node --expose-gc scripts/bench.mjs`) rather than trusting mine.
 

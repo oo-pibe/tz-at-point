@@ -72,7 +72,7 @@ const slug = (heading: string) => heading.toLowerCase().replace(/[^\w\- ]/g, '')
  * no anchor. Docs here quote whole markdown files, so this is not hypothetical:
  * the table of contents once linked to a heading that only existed in a sample.
  */
-const withoutFences = (markdown: string) => markdown.replace(/^(```|~~~)[\s\S]*?^\1/gm, '');
+const withoutFences = (markdown: string) => markdown.replace(/^(`{3,}|~{3,})[\s\S]*?^\1/gm, '');
 
 test('every in-page anchor link points at a heading that still exists', () => {
   for (const file of docs()) {
@@ -96,7 +96,7 @@ const MESSAGES = [
   'lat and lng must be decimal numbers in range', 'is not a canonical point key', 'must map to [zone, radius]',
   'has an invalid zone name', 'has radius', 'unsupported version', 'must be a plain object',
   'unknown option', 'needs a value', 'does not take a value', 'no such file or directory', 'no such directory',
-  'not writable', 'is a directory', 'not a directory', 'permission denied', 'has no points', 'attribution must be a string', 'still records geo-tz', 'new points were resolved with',
+  'not writable', 'is a directory', 'not a directory', 'permission denied', 'symlink loop', 'name too long', 'has no points', 'attribution must be a string', 'still records geo-tz', 'new points were resolved with',
 ];
 
 test('the CLI reference covers every flag and every message', () => {
@@ -151,4 +151,10 @@ test('package.json is importable, and tz-at-point/core exists for table-only con
 test('Claude Code contributors get AGENTS.md through .claude/CLAUDE.md, not a plugin-root CLAUDE.md', () => {
   assert.equal(read('.claude/CLAUDE.md').trim(), '@../AGENTS.md');
   assert.ok(!existsSync(join(root, 'CLAUDE.md')), 'a CLAUDE.md at the plugin root is not loaded and fails plugin validation');
+});
+
+test('a four-backtick fence, the way a markdown sample is quoted, hides the headings inside it', () => {
+  const sample = '# Real\n````md\n```js\n## Sample\n```\n````\n# After\n~~~\n## Tilde\n~~~\n';
+  const seen = [...withoutFences(sample).matchAll(/^#{1,6} (.+)$/gm)].map(([, h]) => h);
+  assert.deepEqual(seen, ['Real', 'After']);
 });
