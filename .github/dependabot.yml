@@ -8,6 +8,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # engines allows Node 20.19; types for a newer major would describe APIs it does not have.
+      # Raise this together with the engines floor, not before.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   # The example is what people copy, so it should not quietly go stale.
   - package-ecosystem: npm
     directory: /examples/serverless-function
