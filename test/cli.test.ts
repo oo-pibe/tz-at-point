@@ -415,6 +415,9 @@ test('a missing or surplus value names the long option, without the short alias 
   const w = workspace(LANDMARKS.slice(0, 1));
   assert.match(run('build', w.points, '-o').stderr, /^tz-at-point: --out needs a value\n$/);
   assert.match(run('build', w.points, '--out').stderr, /^tz-at-point: --out needs a value\n$/);
+  // Node quotes only '-o' when the next word looks like an option; the long name is still what is printed.
+  assert.match(run('build', w.points, '-o', '--check').stderr, /^tz-at-point: --out needs a value\n$/);
+  assert.match(run('build', w.points, '-o', '--max-radius', '250').stderr, /^tz-at-point: --out needs a value\n$/);
   assert.match(run('build', w.points, '-o', w.out, '--help=yes').stderr, /^tz-at-point: --help does not take a value\n$/);
   assert.match(run('check', w.out, '--help=1').stderr, /^tz-at-point: --help does not take a value\n$/);
 });

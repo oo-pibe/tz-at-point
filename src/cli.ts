@@ -32,7 +32,10 @@ function parse<const T extends ParseArgsOptionsConfig>(args: string[], options: 
     // Node quotes the option as '-o, --out <value>' or '--frobnicate'. Name the long form; and the
     // unknown-option text is the user's own, so it is escaped before it joins a multi-line message.
     const quoted = /'([^']*)'/.exec(message)?.[1] ?? '';
-    const option = printable(/--[^\s,]+/.exec(quoted)?.[0] ?? /-[^\s,]+/.exec(quoted)?.[0] ?? 'an option');
+    const raw = /--[^\s,]+/.exec(quoted)?.[0] ?? /-[^\s,]+/.exec(quoted)?.[0] ?? 'an option';
+    // Some of Node's messages quote only the short alias; name the long option it stands for.
+    const long = raw.length === 2 ? Object.entries(options).find(([, o]) => o.short === raw[1])?.[0] : undefined;
+    const option = printable(long ? `--${long}` : raw);
     if (code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') throw new UsageError(`unknown option ${option}\n${USAGE}`);
     if (code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE') {
       throw new UsageError(message.includes('does not take an argument') ? `${option} does not take a value` : `${option} needs a value`);

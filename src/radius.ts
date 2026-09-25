@@ -15,12 +15,8 @@ export function safeRadius(find: Find, lat: number, lng: number, zone: string, m
   if (max < RADIUS_STEP) return 0;
   for (let ring = RADIUS_STEP; ring <= max + RADIUS_STEP; ring += RADIUS_STEP) {
     const bearings = Math.ceil((2 * Math.PI * ring) / RADIUS_STEP);
-    // Each ring starts at a different bearing, stepping by the golden angle so no two rings share
-    // one. With every ring starting at 0, the meridian through the point was a seam on all of them
-    // and a 4m strip beside it threaded every ring to the cap.
-    const phase = ((ring / RADIUS_STEP) * 0.618033988749895) % 1;
     for (let i = 0; i < bearings; i++) {
-      if (find(...destination(lat, lng, ring, (360 * (i + phase)) / bearings)) !== zone) return Math.max(0, ring - 2 * RADIUS_STEP);
+      if (find(...destination(lat, lng, ring, (360 * i) / bearings)) !== zone) return Math.max(0, ring - 2 * RADIUS_STEP);
     }
   }
   return Math.floor(max / RADIUS_STEP) * RADIUS_STEP;

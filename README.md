@@ -200,7 +200,7 @@ read node_modules/tz-at-point/skills/tz-at-point/SKILL.md.
 
 ## What it promises
 
-A `table` or `table-near` answer agrees with the boundary polygons, with two documented exceptions: inside a key's ~11m rounding cell the key's zone wins, and a piece of another zone smaller than the probe lattice can resolve (about 7m) can hide inside a radius. Every stored radius keeps a fully probed ring beyond it, so a compact region bigger than that is caught, but this is sampling rather than proof: a sliver narrower than the 10m ring spacing can hide between two rings if it is short enough to sit between them, and one under about 15cm can run straight through however long it is.
+A `table` or `table-near` answer agrees with the boundary polygons, with two documented exceptions: inside a key's ~11m rounding cell the key's zone wins, and a piece of another zone smaller than the probe lattice can resolve (about 7m) can hide inside a radius. Every stored radius keeps a fully probed ring beyond it, so a compact region bigger than that is caught, but this is sampling rather than proof: a sliver narrower than the 10m ring spacing can hide between two rings, and one a few metres wide that happens to run between probes on ring after ring can thread them however long it is.
 
 `check` re-runs those probes against your installed geo-tz, so it catches stale entries, hand edits and moved boundaries. It can't catch what the probes were too coarse to see in the first place.
 
@@ -212,7 +212,7 @@ Measured on 2026-09-23:
 | Startup | 55-85ms and ~17MB for 30,000 points spread worldwide |
 | Build | 2,218 geo-tz probes around each point at the default radius, 8,357 at 500, plus one for the point itself |
 | Runtime dependencies | one, the raster; `tz-at-point/core` keeps it out of your bundle |
-| Tests | 138, including bundled runs with file reads denied and a lookup checked against a brute-force scan |
+| Tests | 137, including bundled runs with file reads denied and a lookup checked against a brute-force scan |
 
 Timings are from [`scripts/bench.mjs`](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/bench.mjs) on one quiet Apple-silicon machine under Node 25; one reviewer's runs on a loaded machine came out two to three times slower, and startup moves with how your points are spread. Run it on yours (`node --expose-gc scripts/bench.mjs`) rather than trusting mine.
 

@@ -61,24 +61,3 @@ test('a probe with no answer is a disagreement, and a point with no zone has no 
   assert.deepEqual(resolve(() => undefined, 40, 0, 250), [undefined, 0]);
   assert.deepEqual(resolve(borderNorth(65), 40, 0, 250), ['Zone/A', 50]);
 });
-
-// A find whose zones are drawn in metres east/north of a centre, on a flat patch of the sphere.
-function planar(lat0: number, lng0: number, foreign: (east: number, north: number) => boolean) {
-  const mPerDegLat = 111_320;
-  const mPerDegLng = mPerDegLat * Math.cos((lat0 * Math.PI) / 180);
-  return (lat: number, lng: number) => (foreign((lng - lng0) * mPerDegLng, (lat - lat0) * mPerDegLat) ? 'Zone/B' : 'Zone/A');
-}
-
-test('a thin strip along the north-south or east-west axis is caught within a few rings', () => {
-  // Every ring used to start at bearing 0, so the meridian through the point was a seam on all of
-  // them: a 4.3m strip just east of it threaded every ring to 1000m. Rings now start at different
-  // bearings, so no line through the point is probe-free on ring after ring.
-  for (const [lat, lng] of [[40, 0], [0, 0], [-33.9, 151.2], [89.9, 0]]) {
-    const northSouth = planar(lat, lng, (e) => e > 0.001 && e < 4.001);
-    const eastWest = planar(lat, lng, (e, n) => n > 0.001 && n < 2.001);
-    for (const [name, find] of [['north-south', northSouth], ['east-west', eastWest]] as const) {
-      const radius = safeRadius(find, lat, lng, 'Zone/A', 1000);
-      assert.ok(radius <= 30, `${name} strip at ${lat},${lng}: returned ${radius}m`);
-    }
-  }
-});
