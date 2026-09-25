@@ -1,6 +1,6 @@
 # tz-at-point
 
-**Exact IANA timezones for the coordinates you already know, with no file reads at runtime.**
+**Exact IANA timezones for a fixed list of coordinates, with no file reads at runtime.**
 
 [![ci](https://github.com/oo-pibe/tz-at-point/actions/workflows/ci.yml/badge.svg)](https://github.com/oo-pibe/tz-at-point/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/tz-at-point)](https://www.npmjs.com/package/tz-at-point)
@@ -8,7 +8,7 @@
 [![types: TypeScript](https://img.shields.io/npm/types/tz-at-point)](https://www.typescriptlang.org/)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/oo-pibe/tz-at-point/blob/main/LICENSE)
 
-Timezone lookup from latitude and longitude, resolved offline at build time. You point the CLI at your own coordinates, it resolves each one against the real timezone boundaries with geo-tz, and commits the answers as a small JSON table. At runtime `createLookup` reads that table, then a nearby entry, then a compact raster, and never touches the filesystem, which is what makes it safe inside a bundled serverless function.
+Timezone lookup from latitude and longitude, resolved offline at build time. You point the CLI at your coordinates; it resolves each one against the timezone boundary polygons with geo-tz and writes the answers to a small JSON table, which you commit. At runtime `createLookup` reads that table, then a nearby entry, then a compact raster, and never touches the filesystem, so it runs inside a bundled serverless function. Anything not in the table falls back to the raster, which is approximate near borders; if none of your points are near one, the raster alone is enough.
 
 ```ts
 import { createLookup } from 'tz-at-point';
@@ -17,7 +17,7 @@ import table from './zones.json' with { type: 'json' };
 const zoneAt = createLookup(table);
 
 zoneAt(65.8481, 24.1466); // { zone: 'Europe/Helsinki', source: 'table' }
-zoneAt(40.4168, -3.7038); // { zone: 'Europe/Madrid',   source: 'raster' }
+zoneAt(40.4168, -3.7038); // { zone: 'Europe/Madrid',   source: 'raster' }  not in the table
 ```
 
 **Status:** 1.0.0. The runtime API is stable and the table format is versioned; changes are recorded in the [changelog](https://github.com/oo-pibe/tz-at-point/blob/main/CHANGELOG.md).
@@ -37,18 +37,18 @@ Error: ENOENT: no such file or directory, open
 
 On Lambda you can do exactly that, and people do: copy the directory into a layer and set the variable, at 74MB against the 250MB unzipped limit. On an edge runtime you can't, because there is no filesystem to point it at.
 
-**[@photostructure/tz-lookup](https://github.com/photostructure/tz-lookup) reads no files.** It's 73KB of JavaScript, 74KB once bundled, and works anywhere. It's also approximate, and near a border the neighbour often keeps different clocks:
+**[@photostructure/tz-lookup](https://github.com/photostructure/tz-lookup) reads no files.** It's 74KB once bundled and works anywhere. It's also approximate, and near a border the neighbour often keeps different clocks:
 
 | Place | Coordinate | Raster says | Actually | Off by |
 |---|---|---|---|---|
 | Tornio, Finland | 65.8481, 24.1466 | Europe/Stockholm | Europe/Helsinki | 1 hour |
 | Tabatinga, Brazil | -4.2527, -69.9381 | America/Eirunepe | America/Manaus | 1 hour |
 
-[Its own README](https://github.com/photostructure/tz-lookup) puts the disagreement with geo-tz at ~10% of likely-inhabited points, ~5% even after forgiving zones whose clocks match. Measured a different way, at points sampled uniformly by area on land outside Antarctica, it returns a zone with the wrong UTC offset for **3.0% of the world**, 3.4% of North America and 1.5% of Europe ([the script](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/raster-disagreement.mjs) is seeded; `node scripts/raster-disagreement.mjs 60000` reproduces those figures, and where geo-tz names several zones for a disputed area the raster is counted right if it matches any of them).
+[Its own README](https://github.com/photostructure/tz-lookup) puts the disagreement with geo-tz at ~10% of likely-inhabited points, ~5% even after forgiving zones whose clocks match. Measured a different way, at points sampled uniformly by area on land outside Antarctica, it returns a zone with the wrong UTC offset for **3.0% of the world**, 3.4% of North America and 1.5% of Europe (reproduce with `node scripts/raster-disagreement.mjs 60000`; [the script](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/raster-disagreement.mjs) says how it counts).
 
-So the usual choice is: exact, but heavy and tied to a filesystem, or light and portable, but approximate. ([tzf-wasm](#prior-art) sits between them: simplified polygons in a 4MB wasm asset, exact except within about 110m of a border.)
+[tzf-wasm](#prior-art) sits between the two: simplified polygons in a 4MB wasm asset, exact except within about 110m of a border.
 
-**Your venues, stores or depots are a fixed list.** Resolve them once, at build time, with the exact polygons, and the choice disappears: exact answers, no polygons shipped, nothing read at runtime.
+**Your venues, stores or depots are a fixed list.** Resolve them once, at build time, with the exact polygons. Then nothing heavy ships and nothing is read at runtime.
 
 | | geo-tz | tz-lookup (raster) | hosted API | tz-at-point |
 |---|---|---|---|---|
@@ -59,7 +59,7 @@ So the usual choice is: exact, but heavy and tied to a filesystem, or light and 
 | Answers any coordinate | yes | yes | yes | your points exactly, everything else via the raster |
 | Cost per lookup | — | — | $5/1k after 10k free (Google) | — |
 
-"Exact" here means it agrees with the OpenStreetMap boundary data, which is what every option in that table is measured against. One case is not exact: a point so close to a border that its rounded key falls on the other side. `build` warns by name when that happens, and [What it promises](#what-it-promises) says what the lookup does about it.
+"Exact" means it agrees with the OpenStreetMap boundary data; every option in that table is measured against the same data. One case is not exact: a point so close to a border that its rounded key falls on the other side. `build` warns by name when that happens, and [What it promises](#what-it-promises) says what the lookup does about it.
 
 **If none of your points are near a border, you don't need this.** One command tells you, for your own data:
 
@@ -82,7 +82,7 @@ Build resolves each point with geo-tz, then probes the ground around it on a ~10
 
 ## Prior art
 
-Everything else in this space answers "any point on Earth, at runtime", and carries a global dataset to do it. The interesting ones:
+Everything else in this space answers "any point on Earth, at runtime", and carries a global dataset to do it. Three of them:
 
 - **[tzf-wasm](https://github.com/ringsaturn/tzf-wasm)**, the wasm build of the Rust port of **[tzf](https://github.com/ringsaturn/tzf)** (Go). It carries simplified boundary polygons in a separate 4MB `.wasm` asset, loaded by `fetch` with no filesystem, and answers any coordinate. Its bundled dataset is the simplified one: [its own accuracy notes](https://github.com/ringsaturn/tzf#accuracy) put boundaries within about 110m of the full-precision border, which is exactly the strip where this package spends its effort. On an edge runtime that needs arbitrary coordinates it is the better fit; for a fixed list of points near borders, it is not exact and this is.
 - **geo-tz** itself, if you can ship its `data/` directory and set `GEO_TZ_DATA_PATH`.
@@ -99,7 +99,7 @@ npm install tz-at-point
 npm install --save-dev geo-tz   # only to build and check the table
 ```
 
-Node 20.19+ or 22.12+ (the built package is tested on 20.19.0 in CI, though Node 20 has been end-of-life since April 2026). The published types work with TypeScript 5.0 and later.
+Node 20.19+ or 22.12+; CI runs the suite on 22 and 24 and the packed tarball on 20.19.0 (Node 20 has been end-of-life since April 2026). The published types work with TypeScript 5.0 and later.
 
 ## Quick start
 
@@ -174,7 +174,7 @@ tz-at-point check <zones.json> [--raster]
 tz-at-point --version
 ```
 
-`build` only adds points, never removes them, and leaves the file alone when there's nothing to add. `check --raster` reports what the raster alone would answer for your points. Parallel builds of the same table are safe. `--check` reports missing points without writing, and without needing geo-tz. `--refresh` re-resolves every entry after a geo-tz upgrade. `check` re-probes the table against the boundaries you have installed.
+`build` only adds points, never removes them, and leaves the file alone when there's nothing to add. `--check` reports missing points without writing, and without needing geo-tz. `--refresh` re-resolves every entry after a geo-tz upgrade. `check` re-probes the table against the boundaries you have installed, and `check --raster` also reports what the raster alone would answer for your points. Parallel builds of the same table are safe.
 
 Exit codes: `0` success, `1` a check found a problem, `2` bad arguments or input.
 
@@ -204,7 +204,7 @@ A `table` or `table-near` answer agrees with the boundary polygons, with two doc
 
 `check` re-runs those probes against your installed geo-tz, so it catches stale entries, hand edits and moved boundaries. It can't catch what the probes were too coarse to see in the first place.
 
-The rest, measured rather than asserted:
+Measured on 2026-09-23:
 
 | | |
 |---|---|
@@ -214,19 +214,19 @@ The rest, measured rather than asserted:
 | Runtime dependencies | one, the raster; `tz-at-point/core` keeps it out of your bundle |
 | Tests | 131, including bundled runs with file reads denied and a lookup checked against a brute-force scan |
 
-Timings are from [`scripts/bench.mjs`](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/bench.mjs) on one quiet Apple-silicon machine under Node 25 on 2026-09-23; a reviewer's runs on a loaded machine came out two to three times slower, and startup moves with how your points are spread. Run it on yours (`node --expose-gc scripts/bench.mjs`) rather than trusting mine.
+Timings are from [`scripts/bench.mjs`](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/bench.mjs) on one quiet Apple-silicon machine under Node 25; one reviewer's runs on a loaded machine came out two to three times slower, and startup moves with how your points are spread. Run it on yours (`node --expose-gc scripts/bench.mjs`) rather than trusting mine.
 
 During development the radius prober was also fuzzed differentially against geo-tz, and the suite was checked with mutation testing. Neither runs in CI. The fuzzer's one real find was a lobe of another zone dipping a metre or so inside a stored 130m radius, between the rings the prober sampled; [`test/radius.test.ts`](https://github.com/oo-pibe/tz-at-point/blob/main/test/radius.test.ts) keeps that case.
 
 ## Keeping the table current
 
-Timezone boundaries ship a few times a year (five releases so far in 2026), and occasionally a zone genuinely changes: `America/Coyhaique` was carved out of `America/Santiago` in 2025b, `Asia/Choibalsan` became an alias for `Asia/Ulaanbaatar` in 2024b. A committed table can go stale, so it says what produced it:
+Timezone boundaries ship a few times a year (five releases so far in 2026), and occasionally a zone changes: `America/Coyhaique` was carved out of `America/Santiago` in 2025b, `Asia/Choibalsan` became an alias for `Asia/Ulaanbaatar` in 2024b. A committed table can go stale, so it says what produced it:
 
 ```json
 { "v": 1, "attribution": "…OpenStreetMap…ODbL 1.0…", "geoTz": "8.1.9", "maxRadius": 250, "points": { … } }
 ```
 
-`check` re-probes every entry against the geo-tz you have installed and prints both versions, so a data bump becomes a failing CI step and a readable diff, not a silent change of answer. That is the part embedded global datasets can't give you: when a library's bundled boundaries age, nothing tells you.
+`check` re-probes every entry against the geo-tz you have installed and prints both versions, so a data bump becomes a failing CI step and a readable diff, not a silent change of answer.
 
 ## Troubleshooting
 
@@ -264,7 +264,7 @@ Only with `--platform=neutral`, which ignores `main` fields, and the raster decl
 
 ## FAQ
 
-**Does this replace geo-tz?** No. It uses geo-tz at build time, where reading 30MB of polygons costs nothing, and keeps it out of your deployment.
+**Does this replace geo-tz?** No. It uses geo-tz at build time, where reading 30MB of polygons is a one-off, and keeps it out of your deployment.
 
 **How big does the table get?** Roughly 50 bytes per point (45 for short zone names like `Europe/London`, 65 for `America/Argentina/Buenos_Aires`), so 1,000 venues is about 50KB of JSON.
 
@@ -284,8 +284,6 @@ tz-at-point's code is MIT. The answers come from three upstreams on different te
 | Boundaries, at build time | [geo-tz](https://github.com/evansiroky/node-geo-tz) ← [timezone-boundary-builder](https://github.com/evansiroky/timezone-boundary-builder) ← OpenStreetMap | Code MIT, data [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/) |
 | Raster fallback, at runtime | [@photostructure/tz-lookup](https://github.com/photostructure/tz-lookup) | CC0-1.0, built from the same OpenStreetMap boundaries |
 
-This package ships no OpenStreetMap data of its own. geo-tz is an optional peer dependency the CLI uses on your machine, never imported at runtime.
-
 ### What you install
 
 | | Packages | Maintainer accounts | Size |
@@ -295,9 +293,7 @@ This package ships no OpenStreetMap data of its own. geo-tz is an optional peer 
 
 Maintainer accounts are the distinct npm accounts that `npm view <package> maintainers` lists across each tree, counted on 2026-09-23. They move.
 
-The CLI loads geo-tz through a dynamic import, so it never enters a consumer's runtime graph. If you only need the table, `npm install --save-dev geo-tz` on the machine that builds it and nothing else inherits that footprint.
-
-Every dependency here resolves from the npm registry with a verified signature, and `npm audit` reports nothing. The only install script in the whole tree is esbuild's, which is a dev dependency and isn't needed: this repo's `.npmrc` sets `ignore-scripts=true`, and everything still builds and tests.
+As of 2026-09-23, every dependency resolves from the npm registry with a verified signature and `npm audit` reports nothing. The only install script in the whole tree is esbuild's, a dev dependency whose script isn't needed: this repo's `.npmrc` sets `ignore-scripts=true`, and everything still builds and tests.
 
 ### What that means for your table
 

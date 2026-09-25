@@ -1,6 +1,6 @@
 /**
  * Escape everything outside printable ASCII, so input cannot forge log lines or send terminal control codes.
- * `keepNewlines` is for text tz-at-point wrote itself, such as usage and Node's own multi-line errors.
+ * `keepNewlines` is for the usage text, which tz-at-point wrote itself and which spans lines.
  */
 export const printable = (text: string, keepNewlines = false) =>
   text.replace(keepNewlines ? /[^\n\x20-\x7e]/g : /[^\x20-\x7e]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);

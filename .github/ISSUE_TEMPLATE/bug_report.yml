@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in tz-at-point behaves differently than documented
+description: Something in tz-at-point behaves differently from what is documented
 labels: [bug]
 body:
   - type: textarea

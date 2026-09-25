@@ -218,7 +218,7 @@ async function build(args: string[]): Promise<number> {
   const warnings = new Set<string>();
   // An empty table is a legitimate first commit, so it is written; but a header with no rows, or `[]`,
   // is also what the wrong file looks like, and silence would send every lookup quietly to the raster.
-  if (points.length === 0) warnings.add(`warning: ${input} has no points; ${out} answers nothing until it does`);
+  if (points.length === 0) warnings.add(`warning: ${input} has no points, so ${out} answers nothing`);
   let geoTz: string | undefined;
   if (todo.size > 0 || !exists) {
     const target = writableTarget(out);
@@ -248,7 +248,7 @@ async function build(args: string[]): Promise<number> {
       const recorded = exists ? tableGeoTz(readJson(out)) : undefined;
       const lineage = resolvedEverything ? geoTz : recorded;
       if (!resolvedEverything && recorded && geoTz && recorded !== geoTz) {
-        console.log(printable(`${out} still records geo-tz ${recorded}; resolved the new points with ${geoTz}. Run --refresh to re-resolve the rest.`));
+        warnings.add(`warning: ${out} still records geo-tz ${recorded}; new points were resolved with ${geoTz}; run --refresh to re-resolve the rest`);
       }
       writeAtomically(target, formatTable(table, maxRadius, lineage));
       const committed = new Map(readCommitted().map((e) => [e.key, `${e.zone},${e.radius}`]));

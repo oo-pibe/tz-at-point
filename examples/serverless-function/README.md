@@ -15,7 +15,7 @@ TP-47 v KuPS                 2026-09-20T21:30:00Z → Mon 21 Sept, 00:30     Eur
 Tabatinga v Nacional         2026-09-27T19:00:00Z → Sun 27 Sept, 15:00     America/Manaus
 ```
 
-Two things to notice. The Tornio kickoff is at 21:30 UTC and lands on the **next day** locally, which is why the output carries a date. And two of these four venues are ones a raster lookup gets wrong:
+The TP-47 (Tornio) kickoff is at 21:30 UTC and lands on the **next day** locally, which is why the output carries a date. And two of these four venues are ones a raster lookup gets wrong:
 
 ```sh
 $ npm run zones:audit

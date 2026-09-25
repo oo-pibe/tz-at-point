@@ -9,7 +9,7 @@ First release.
 ### Added
 
 - `createLookup(table)`: resolves a coordinate from a committed table, then the nearest entry within its safe radius, then a raster fallback. Never throws, never reads a file.
-- `tz-at-point/core`: the same lookup without the raster, so it never enters your bundle (3KB).
+- `tz-at-point/core`: the same lookup without the raster, so it never enters your bundle; about 3KB bundled.
 - `tz-at-point build`: resolves your points offline with `geo-tz/all` and writes a table. Adds points, never removes them; `--check` fails CI when a point is missing; `--refresh` re-resolves after a boundary update.
 - `tz-at-point check`: re-probes every entry against the installed geo-tz, and flags zones your runtime doesn't recognise. `--raster` reports what the raster alone would answer for your points.
 - Safe radius per entry, probed on a ~10m lattice with a verified ring beyond it, so a nearby coordinate still resolves from the table.

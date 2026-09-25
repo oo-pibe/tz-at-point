@@ -9,7 +9,7 @@ npm install --save-dev geo-tz
 
 geo-tz (about 74MB, 29 packages) is only for `build` and `check`, and nothing at runtime imports it. At runtime a consumer installs two packages: this one and the raster.
 
-Generated tables carry an `attribution` line naming OpenStreetMap and the ODbL, because the boundaries come from there. Anything you ship that bundles the raster should credit OpenStreetMap; see the README's data sources section. tz-at-point needs Node 20.19+ or 22.12+, and is ESM: `require('tz-at-point')` works from Node 22.12 on.
+Generated tables carry an `attribution` line naming OpenStreetMap and the ODbL, because the boundaries come from there. Anything you ship that bundles the raster should credit OpenStreetMap; see the README's data sources section. tz-at-point needs Node 20.19+ or 22.12+, and is ESM: `require('tz-at-point')` works on 20.19+ and 22.12+, the same floors.
 
 Importing from `tz-at-point/core` gives the same `createLookup` with no raster fallback, so the raster (74KB bundled) never enters your bundle. Points outside the table then answer `{ zone: null }`.
 
@@ -35,7 +35,7 @@ The table must be imported, not read with `fs`, so the bundler embeds it.
 |---|---|
 | Node ESM, TypeScript `module: nodenext` | `import table from './zones.json' with { type: 'json' };` Node requires the attribute; TypeScript accepts it from 5.3 and enforces it from 5.7. `module: node16` rejects it. |
 | Bundlers: Next.js, Vite, esbuild, webpack, TypeScript `moduleResolution: bundler` | `import table from './zones.json';` also works |
-| CommonJS | `const table = require('./zones.json');` works, but `require('tz-at-point')` needs Node 22.12 or later |
+| CommonJS | `const table = require('./zones.json');` works, but `require('tz-at-point')` works on the same Node floors, 20.19+ and 22.12+ |
 
 - Add `"resolveJsonModule": true` to `tsconfig.json`. Required on every TypeScript version tested (5.0 through 7.0) when `moduleResolution` is `nodenext`, otherwise the import fails with `TS2732`; harmless in bundler setups.
 - Node prints no warning for JSON imports from 22.12 on.
@@ -95,7 +95,7 @@ Treat any change to the installed geo-tz version as a boundary-data change, incl
 
 ```sh
 npm install --save-dev geo-tz@latest
-npx tz-at-point build data/points.csv -o data/zones.json --refresh   # add the same --max-radius you build with
+npx tz-at-point build data/points.csv -o data/zones.json --refresh   # add the same --max-radius you built with
 npx tz-at-point check data/zones.json
 git diff data/zones.json
 ```

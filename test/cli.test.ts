@@ -137,7 +137,7 @@ test('geoTz records lineage only for a table that was resolved as a whole', () =
   const partial = run('build', w.points, '-o', w.out);
   assert.equal(partial.status, 0, partial.stderr);
   assert.equal(JSON.parse(readFileSync(w.out, 'utf8')).geoTz, '8.0.0', 'a partial build must not claim the whole table is fresh');
-  assert.match(partial.stdout, /still records geo-tz 8\.0\.0/);
+  assert.match(partial.stderr, /^warning: .*still records geo-tz 8\.0\.0; new points were resolved with /);
 
   // --refresh resolves everything, so it may stamp the installed version.
   assert.equal(run('build', w.points, '-o', w.out, '--refresh').status, 0);
@@ -397,7 +397,7 @@ test('a points file with no points still builds, but says so on stderr', () => {
     const w = workspace(content, name);
     const r = run('build', w.points, '-o', w.out);
     assert.equal(r.status, 0, r.stderr);
-    assert.match(r.stderr, new RegExp(`^warning: .*${name} has no points; .*zones\\.json answers nothing until it does\\n$`));
+    assert.match(r.stderr, new RegExp(`^warning: .*${name} has no points, so .*zones\\.json answers nothing\\n$`));
     assert.deepEqual(readOut(w.out), {});
   }
 });

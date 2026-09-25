@@ -17,7 +17,7 @@ Two entry points, same function:
 function createLookup(table: unknown, options?: Options): Lookup;
 ```
 
-Builds a lookup from a table written by `tz-at-point build`. Call it once per process, at module scope: it validates the table and builds a grid index. For 30,000 entries that took 60-270ms and 10-15MB of heap at radius 250, more as radii grow. Each lookup then takes a microsecond or so.
+Builds a lookup from a table written by `tz-at-point build`. Call it once per process, at module scope: it validates the table and builds a grid index. Startup and lookup timings are in the README under "What it promises"; `scripts/bench.mjs` in the repo measures them on your machine.
 
 - `table` is typed `unknown` so a JSON import passes without a cast. It is validated at runtime.
 - Throws a `TypeError` if the table is malformed. The message starts with `tz-at-point table:` and names the first bad entry.
@@ -108,7 +108,7 @@ interface Table {
 
 - Keys: `lat,lng`, each with exactly 4 decimals, as `pointKey` produces them.
 - Zone: an IANA name, letters, digits, `_`, `+`, `-`, up to three `/`-separated parts.
-- Radius: meters, a multiple of 10 from 0 to 1000. It is the widest disc around the key that build's probes vouch for: a ~10m lattice, with a whole verified ring beyond the radius itself, because a ring only samples its circle at intervals. Radius 0 means another zone is within 10m, unless the table was built with `--max-radius 0`.
+- Radius: metres, a multiple of 10 from 0 to 1000. It is the widest disc around the key that build's probes vouch for: a ~10m lattice, with a whole verified ring beyond the radius itself, because a ring only samples its circle at intervals. Radius 0 means another zone is within 10m, unless the table was built with `--max-radius 0`.
 - `maxRadius`: the `--max-radius` the table was built with. A later `build` with a different value re-resolves every entry, because a radius means nothing without the cap it was probed under.
 - `geoTz`: the geo-tz version whose boundaries produced these zones. `check` prints it, so a boundary data bump is visible in a diff instead of silent.
 - The zone and radius are for the rounded key, not for the original input coordinate.

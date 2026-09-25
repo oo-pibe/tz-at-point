@@ -1,6 +1,6 @@
 # tz-at-point
 
-> The IANA timezone at a coordinate, exact at the points you care about, with no file reads at runtime. Build a small JSON table offline with `npx tz-at-point build`, commit it, and call `createLookup(table)` in serverless code.
+> The IANA timezone at a coordinate, exact at the points you list, with no file reads at runtime. Build a small JSON table offline with `npx tz-at-point build`, commit it, and call `createLookup(table)` in serverless code.
 
 tz-at-point is a TypeScript/JavaScript library and CLI for Node 20.19+ or 22.12+. geo-tz is needed only at build time, as a dev dependency.
 

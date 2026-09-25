@@ -8,7 +8,7 @@ license: MIT
 
 tz-at-point answers the IANA timezone at a coordinate. `tz-at-point build` resolves your points offline against geo-tz's polygons into a small `zones.json`. At runtime, `createLookup(table)` answers from that table, then from the nearest table entry within its safe radius, then from a bundled raster for everything else. The runtime reads no files.
 
-Everything below is verified against the package. You don't need to read tz-at-point's `dist/` source: the answers are here and in `references/`.
+The messages and signatures below are checked against the package source by its test suite. You don't need to read tz-at-point's `dist/` source: the answers are here and in `references/`.
 
 tz-at-point answers with a zone name, never a UTC offset. Get the offset for a given moment from `Intl.DateTimeFormat` with that `timeZone`.
 
@@ -22,7 +22,7 @@ tz-at-point answers with a zone name, never a UTC offset. Get the offset for a g
 Copy this and tick it off.
 
 ```
-- [ ] npm install tz-at-point && npm install --save-dev geo-tz   (this also moves geo-tz out of dependencies)
+- [ ] npm install tz-at-point && npm install --save-dev geo-tz   (if geo-tz is in dependencies, this moves it out)
 - [ ] Points file: .csv with `lat` and `lng` header columns, or .json array of [lat, lng] / { lat, lng } (extra fields ignored)
 - [ ] npx tz-at-point build <points> -o <zones.json>        (warnings go to stderr: read them)
 - [ ] Commit zones.json next to the code that imports it
@@ -37,7 +37,7 @@ Copy this and tick it off.
 
 ## Data the function reads
 
-`tz-at-point build` reads CSV directly, so `build` never needs a converter. The runtime is different: a serverless function can't `readFileSync` a CSV any more than geo-tz can read its data files. If the handler needs the venue list itself, keep that list as JSON, import it, and pass the same JSON file to `build`. One file, no drift. Only if people must keep editing a CSV, generate the JSON from it in a script and check both in. If the columns are named differently (`latitude`, `lon`), see `references/setup.md`.
+`tz-at-point build` reads CSV directly, so `build` never needs a converter. The runtime is different: a serverless function can't `readFileSync` a CSV any more than geo-tz can read its data files. If the handler needs the venue list itself, keep that list as JSON, import it, and pass the same JSON file to `build`. One file, so the two cannot drift. Only if people must keep editing a CSV, generate the JSON from it in a script and check both in. If the columns are named differently (`latitude`, `lon`), see `references/setup.md`.
 
 ## Migrating from geo-tz
 
@@ -74,7 +74,7 @@ for (const v of venues) assert.ok(['table', 'table-near'].includes(zoneAt(v.lat,
 - `source`:
   - `table`: the point rounds to a table key (4 decimals, a cell about 11m across).
   - `table-near`: within an entry's safe radius. Correct and normal; not a warning sign.
-  - `raster`: outside the table, approximate near borders. For a point that is in your points file this means the committed table is stale. Worth a test: every known point should resolve with `source !== 'raster'`.
+  - `raster`: outside the table, approximate near borders. For a point that is in your points file this means the committed table is stale. Worth a test: every known point should resolve with source `table` or `table-near` (the snippet above; not `!== 'raster'`, which a bad coordinate also passes).
 
 ## Never
 

@@ -31,7 +31,7 @@ Adds every point missing from the table and never removes an entry. It never re-
 
 Writes are atomic: a temp file is written and synced, then renamed over the table, so an interrupted build leaves the old table in place. Parallel builds of the same table are safe: each merges with what is on disk and verifies its own entries survived. It also runs under Node's permission model, where fsync and fchmod are unavailable (durability and mode preservation are skipped). A hard link to the table is not followed: the rename leaves the other link on the old contents.
 
-Paths and table content in messages are escaped to printable ASCII. Usage text and Node's own multi-line argument errors keep their line breaks.
+Paths and table content in messages are escaped to printable ASCII. Only the usage text keeps its line breaks; every other message is one line.
 
 **Output**
 
@@ -43,8 +43,9 @@ Paths and table content in messages are escaped to printable ASCII. Usage text a
 - `zones.json does not exist yet`: from `--check` when there is no table, exit 1, followed by the same key list and `run:` line.
 - Counts (`5 points`) are entries in the table, not lines in the points file: several coordinates can round to one key.
 - `warning: 51.4394,4.9275 is within 10m of another zone; lookups that round to it answer Europe/Amsterdam, even from across the border`: the entry has radius 0. Its whole key cell (about 11m) answers one zone. Printed on stderr, once per key, on every build whose points include one. Not an error, and not printed with `--check` or when you passed `--max-radius 0`.
-- `warning: 51.449039,4.930128 is in Europe/Brussels, but its key 51.4490,4.9301 is in Europe/Amsterdam; lookups there answer Europe/Amsterdam`: the input point is within a few meters of a border, across it from its rounded key. On stderr. Only points whose key is added in that run are compared, so a new point that shares an existing key is never checked. Move the coordinate onto the correct side if it matters.
-- `warning: points.csv has no points; zones.json answers nothing until it does`: the points file parsed but held no rows (a header alone, or `[]`). The table is still written, empty, so an import of it works from the first commit; but every lookup falls through to the raster until points are added. On stderr, exit 0.
+- `warning: 51.449039,4.930128 is in Europe/Brussels, but its key 51.4490,4.9301 is in Europe/Amsterdam; lookups there answer Europe/Amsterdam`: the input point is within a few metres of a border, across it from its rounded key. On stderr. Only points whose key is added in that run are compared, so a new point that shares an existing key is never checked. Move the coordinate onto the correct side if it matters.
+- `warning: zones.json still records geo-tz 8.1.9; new points were resolved with 8.2.0; run --refresh to re-resolve the rest`: the installed geo-tz is newer than the one the table records, and this build only resolved the points that were missing. The table keeps the older version, because most of its entries were produced by it. `--refresh` re-resolves everything and records the new one. On stderr, exit 0.
+- `warning: points.csv has no points, so zones.json answers nothing`: the points file parsed but held no rows (a header alone, or `[]`). The table is still written, empty, so an import of it works from the first commit; but every lookup falls through to the raster until points are added. On stderr, exit 0.
 - `...and 12 more`: lists are cut at 20 lines.
 
 ## `tz-at-point check <zones.json> [--raster]`
@@ -82,7 +83,7 @@ Every error line starts with `tz-at-point: ` and exits 2.
 | `no zone found for KEY` | geo-tz returned nothing for a coordinate |
 | `JSON points must be an array` | A JSON points file that isn't an array |
 | `row 3: expected [lat, lng] or { lat, lng } with numbers in range` | A bad JSON row (strings, out of range, wrong length) |
-| `CSV header must have lat and lng columns` | Header missing `lat` or `lng` (other names like `latitude` aren't recognized) |
+| `CSV header must have lat and lng columns` | Header missing `lat` or `lng` (other names like `latitude` aren't recognised) |
 | `line 4: unterminated quote (quoted line breaks are not supported)` | A CSV quote left open |
 | `line 4: lat and lng must be decimal numbers in range` | Empty, hex, exponent or out-of-range values |
 | `zones.json: entry "KEY" is not a canonical point key` | Table key not in `pointKey` form (hand edit) |
