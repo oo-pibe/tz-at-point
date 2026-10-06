@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 300" width="920" height="300" role="img" aria-label="A coarse grid laid over a timezone border. One cell straddles the border and is coloured as the Swedish side, but the place inside it, Tornio, is on the Finnish side. The grid answers Europe/Stockholm; the boundary answers Europe/Helsinki; the clocks differ by an hour.">
+  <style>
+    :root { color-scheme: light dark; }
+    .ink   { fill: #1f2328; }
+    .muted { fill: #59636e; }
+    .fi    { fill: #ddf4ff; }
+    .se    { fill: #fff8c5; }
+    .wrong { fill: #fff8c5; stroke: #d4a72c; }
+    .grid  { stroke: #8c959f; }
+    .border{ stroke: #1f2328; }
+    .pin   { fill: #cf222e; }
+    .accent{ fill: #0969da; }
+    @media (prefers-color-scheme: dark) {
+      .ink   { fill: #e6edf3; }
+      .muted { fill: #9198a1; }
+      .fi    { fill: #121d2f; }
+      .se    { fill: #2a2300; }
+      .wrong { fill: #3a3000; stroke: #9e7a0c; }
+      .grid  { stroke: #6e7681; }
+      .border{ stroke: #e6edf3; }
+      .pin   { fill: #ff7b72; }
+      .accent{ fill: #4493f8; }
+    }
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .t   { font-size: 13px; }
+    .sm  { font-size: 11.5px; }
+    .lbl { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+    .mono{ font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+  </style>
+
+  <!-- the ground: Sweden to the west, Finland to the east, the border running down the middle -->
+  <clipPath id="map"><rect x="20" y="30" width="500" height="240" rx="8"/></clipPath>
+  <g clip-path="url(#map)">
+    <rect class="se" x="20" y="30" width="500" height="240"/>
+    <path class="fi" d="M268 30 L252 90 L276 150 L258 210 L270 270 L520 270 L520 30 Z"/>
+    <!-- a coarse grid: each cell answers with one zone for everything inside it -->
+    <g class="grid" stroke-width="1" opacity=".7">
+      <path d="M80 30V270M140 30V270M200 30V270M260 30V270M320 30V270M380 30V270M440 30V270M500 30V270"/>
+      <path d="M20 90H520M20 150H520M20 210H520"/>
+    </g>
+    <!-- the cell that straddles the border: the grid coloured it Swedish -->
+    <rect class="wrong" x="260" y="90" width="60" height="60" stroke-width="2"/>
+    <path class="border" d="M268 30 L252 90 L276 150 L258 210 L270 270" fill="none" stroke-width="2.5" stroke-dasharray="7 4"/>
+    <!-- the place -->
+    <circle class="pin" cx="300" cy="123" r="6"/>
+  </g>
+  <rect x="20" y="30" width="500" height="240" rx="8" fill="none" class="grid" stroke-width="1"/>
+  <text class="lbl muted" x="36" y="56">Sweden · Europe/Stockholm</text>
+  <text class="lbl muted" x="340" y="56">Finland · Europe/Helsinki</text>
+  <text class="sm ink" x="312" y="127">Tornio</text>
+  <text class="sm muted" x="36" y="258">the border, and a grid that is coarser than it</text>
+
+  <!-- the two answers -->
+  <text class="lbl muted" x="556" y="56">The compact grid says</text>
+  <text class="mono t ink" x="556" y="80">Europe/Stockholm</text>
+  <text class="sm muted" x="556" y="100">the cell takes the colour of its larger half</text>
+
+  <text class="lbl muted" x="556" y="146">The boundary polygons say</text>
+  <text class="mono t accent" x="556" y="170">Europe/Helsinki</text>
+  <text class="sm muted" x="556" y="190">tz-at-point stores this answer for Tornio</text>
+
+  <text class="t ink" x="556" y="228">A 21:30 UTC kickoff is</text>
+  <text class="t ink" x="556" y="248">23:30 on one side and</text>
+  <text class="t ink" x="556" y="268">00:30, next day, on the other.</text>
+</svg>

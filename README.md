@@ -1,6 +1,6 @@
 # tz-at-point
 
-**Exact IANA timezones for a fixed list of coordinates, with no file reads at runtime.**
+**The right timezone for every place on your list, worked out ahead of time.**
 
 [![ci](https://github.com/oo-pibe/tz-at-point/actions/workflows/ci.yml/badge.svg)](https://github.com/oo-pibe/tz-at-point/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/tz-at-point)](https://www.npmjs.com/package/tz-at-point)
@@ -8,7 +8,11 @@
 [![types: TypeScript](https://img.shields.io/npm/types/tz-at-point)](https://www.typescriptlang.org/)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/oo-pibe/tz-at-point/blob/main/LICENSE)
 
-Timezone lookup from latitude and longitude, resolved offline at build time. You point the CLI at your coordinates; it resolves each one against the timezone boundary polygons with geo-tz and writes the answers to a small JSON table, which you commit. At runtime `createLookup` reads that table, then a nearby entry, then a compact raster, and never touches the filesystem, so it runs inside a bundled serverless function. Anything not in the table falls back to the raster, which is approximate near borders; if none of your points are near one, the raster alone is enough.
+If your app shows a time at a place, a kickoff at a stadium, an opening hour at a store, a pickup at a depot, it has to know which timezone that place is in. The usual tools either read tens of megabytes of boundary data from disk, which a serverless function doesn't have, or guess from a compact grid and get it wrong near borders, where the wrong answer is a whole hour.
+
+tz-at-point takes your list of places once, works out each one's timezone precisely, and saves the answers in a small file that ships with your app. At runtime it looks the answer up; nothing is downloaded and no file is read. A place that isn't on your list still gets an answer, from the compact grid.
+
+It's for JavaScript and TypeScript projects with a fixed set of locations. If you need to resolve arbitrary coordinates that users type in, [other tools](#prior-art) fit better.
 
 ```ts
 import { createLookup } from 'tz-at-point';
@@ -22,11 +26,27 @@ zoneAt(40.4168, -3.7038); // { zone: 'Europe/Madrid',   source: 'raster' }  not 
 
 **Status:** 1.0.0. The runtime API is stable and the table format is versioned; changes are recorded in the [changelog](https://github.com/oo-pibe/tz-at-point/blob/main/CHANGELOG.md).
 
-[Why](#why) · [How it works](#how-it-works) · [Prior art](#prior-art) · [Install](#install) · [Quick start](#quick-start) · [API](#api) · [CLI](#cli) · [AI coding agents](#use-with-ai-coding-agents) · [What it promises](#what-it-promises) · [Keeping the table current](#keeping-the-table-current) · [Troubleshooting](#troubleshooting) · [FAQ](#faq) · [Data sources](#data-sources)
+[Why](#why) · [How it works](#how-it-works) · [Install](#install) · [Quick start](#quick-start) · [API](#api) · [CLI](#cli) · [AI coding agents](#use-with-ai-coding-agents) · [What it promises](#what-it-promises) · [Prior art](#prior-art) · [Keeping the table current](#keeping-the-table-current) · [Troubleshooting](#troubleshooting) · [FAQ](#faq) · [Data sources](#data-sources)
 
 ## Why
 
 There are two common ways to turn a coordinate into a timezone in JavaScript, and each has a catch.
+
+**[geo-tz](https://github.com/evansiroky/node-geo-tz) is exact**, but it reads about 30MB of boundary polygons from disk, which a bundled function doesn't carry and an edge runtime can't read at all. **[@photostructure/tz-lookup](https://github.com/photostructure/tz-lookup) reads no files**, but it's approximate, and near a border the neighbour often keeps different clocks:
+
+| Place | Coordinate | Raster says | Actually | Off by |
+|---|---|---|---|---|
+| Tornio, Finland | 65.8481, 24.1466 | Europe/Stockholm | Europe/Helsinki | 1 hour |
+| Tabatinga, Brazil | -4.2527, -69.9381 | America/Eirunepe | America/Manaus | 1 hour |
+
+<img src="https://raw.githubusercontent.com/oo-pibe/tz-at-point/main/docs/border.svg" alt="A coarse grid over the Sweden-Finland border. One cell straddles the border and is coloured Swedish, but Tornio, inside it, is in Finland. The grid answers Europe/Stockholm; the boundary polygons answer Europe/Helsinki; a 21:30 UTC kickoff is 23:30 on one side and 00:30 the next day on the other." width="920">
+
+**Your venues, stores or depots are a fixed list.** Resolve them once, at build time, with the exact polygons. Then nothing heavy ships and nothing is read at runtime.
+
+**If none of your points are near a border, you don't need this.** `npx tz-at-point check zones.json --raster` says, for your own data, how many the compact grid would get wrong; if that is zero, use the grid on its own.
+
+<details>
+<summary>The numbers behind that: error rates, sizes, and a comparison table</summary>
 
 **[geo-tz](https://github.com/evansiroky/node-geo-tz) is exact.** It reads the real boundary polygons from about 30MB of data files on disk. A JavaScript bundler won't pull those into your bundle, so unless you ship the `data/` directory alongside it and point `GEO_TZ_DATA_PATH` at it, every lookup that needs them throws:
 
@@ -37,18 +57,9 @@ Error: ENOENT: no such file or directory, open
 
 On Lambda you can do exactly that, and people do: copy the directory into a layer and set the variable, at 74MB against the 250MB unzipped limit. On an edge runtime you can't, because there is no filesystem to point it at.
 
-**[@photostructure/tz-lookup](https://github.com/photostructure/tz-lookup) reads no files.** It's 74KB once bundled and works anywhere. It's also approximate, and near a border the neighbour often keeps different clocks:
-
-| Place | Coordinate | Raster says | Actually | Off by |
-|---|---|---|---|---|
-| Tornio, Finland | 65.8481, 24.1466 | Europe/Stockholm | Europe/Helsinki | 1 hour |
-| Tabatinga, Brazil | -4.2527, -69.9381 | America/Eirunepe | America/Manaus | 1 hour |
-
 [Its own README](https://github.com/photostructure/tz-lookup) puts the disagreement with geo-tz at ~10% of likely-inhabited points, ~5% even after forgiving zones whose clocks match. Measured a different way, at points sampled uniformly by area on land outside Antarctica, it returns a zone with the wrong UTC offset for **3.0% of the world**, 3.4% of North America and 1.5% of Europe (reproduce with `node scripts/raster-disagreement.mjs 60000`; [the script](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/raster-disagreement.mjs) says how it counts).
 
 [tzf-wasm](#prior-art) sits between the two: simplified polygons in a 4MB wasm asset, exact except within about 110m of a border.
-
-**Your venues, stores or depots are a fixed list.** Resolve them once, at build time, with the exact polygons. Then nothing heavy ships and nothing is read at runtime.
 
 | | geo-tz | tz-lookup (raster) | hosted API | tz-at-point |
 |---|---|---|---|---|
@@ -61,7 +72,7 @@ On Lambda you can do exactly that, and people do: copy the directory into a laye
 
 "Exact" means it agrees with the OpenStreetMap boundary data; every option in that table is measured against the same data. One case is not exact: a point so close to a border that its rounded key falls on the other side. `build` warns by name when that happens, and [What it promises](#what-it-promises) says what the lookup does about it.
 
-**If none of your points are near a border, you don't need this.** One command tells you, for your own data:
+What `check --raster` prints for the three points above:
 
 ```console
 $ npx tz-at-point check zones.json --raster
@@ -72,25 +83,13 @@ raster: 2 of 3 points disagree with the table, 2 by a different UTC offset
 ok: 3 points match the polygons
 ```
 
-If that count is 0, use the raster on its own and skip this package.
+</details>
 
 ## How it works
 
 <img src="https://raw.githubusercontent.com/oo-pibe/tz-at-point/main/docs/flow.svg" alt="Build time: points.csv plus tz-at-point build, using geo-tz polygons and 10m probes, produce zones.json, committed to your repo; geo-tz never ships. Runtime: a lat/lng is answered by an exact key (source: table), then the nearest entry within its radius (source: table-near), then the raster fallback (source: raster, approximate), with no file reads." width="920">
 
 Build resolves each point with geo-tz, then probes the ground around it on a ~10m lattice to find how far that zone holds. Those two facts, the zone and that radius, are all the runtime needs.
-
-## Prior art
-
-Everything else in this space answers "any point on Earth, at runtime", and carries a global dataset to do it. Three of them:
-
-- **[tzf-wasm](https://github.com/ringsaturn/tzf-wasm)**, the wasm build of the Rust port of **[tzf](https://github.com/ringsaturn/tzf)** (Go). It carries simplified boundary polygons in a separate 4MB `.wasm` asset, loaded by `fetch` with no filesystem, and answers any coordinate. Its bundled dataset is the simplified one: [its own accuracy notes](https://github.com/ringsaturn/tzf#accuracy) put boundaries within about 110m of the full-precision border, which is exactly the strip where this package spends its effort. On an edge runtime that needs arbitrary coordinates it is the better fit; for a fixed list of points near borders, it is not exact and this is.
-- **geo-tz** itself, if you can ship its `data/` directory and set `GEO_TZ_DATA_PATH`.
-- **[@photostructure/tz-lookup](https://github.com/photostructure/tz-lookup)**, the maintained raster, which this package uses as its fallback.
-
-People have asked geo-tz for a smaller dataset for years: in 2018 its maintainer reopened [an issue about shipping a subset](https://github.com/evansiroky/node-geo-tz/issues/75) to say "that'd make a good feature… I'm open to receiving a PR", and closed it two and a half months later with a commit that added in-memory caching of lookup areas rather than a smaller download. [A Lambda user asking the same in 2024](https://github.com/evansiroky/node-geo-tz/issues/170) has had no reply from the maintainer. Narrowing the *dataset* is what people ask for; resolving a *known point set* instead is the answer I could not find packaged anywhere, so people write the same script by hand: resolve the points with geo-tz in `scripts/`, commit the JSON, keep geo-tz out of `src/`.
-
-This is that script, made reliable: probed radii so nearby coordinates still resolve, a `check` command for CI, and the geo-tz version recorded in the table.
 
 ## Install
 
@@ -217,6 +216,18 @@ Measured on 2026-09-23:
 Timings are from [`scripts/bench.mjs`](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/bench.mjs) on one quiet Apple-silicon machine under Node 25; one reviewer's runs on a loaded machine came out two to three times slower, and startup moves with how your points are spread. Run it on yours (`node --expose-gc scripts/bench.mjs`) rather than trusting mine.
 
 During development the radius prober was also fuzzed differentially against geo-tz, and the suite was checked with mutation testing. Neither runs in CI. The fuzzer's one real find was a lobe of another zone dipping a metre or so inside a stored 130m radius, between the rings the prober sampled; [`test/radius.test.ts`](https://github.com/oo-pibe/tz-at-point/blob/main/test/radius.test.ts) keeps that case.
+
+## Prior art
+
+Everything else in this space answers "any point on Earth, at runtime", and carries a global dataset to do it. Three of them:
+
+- **[tzf-wasm](https://github.com/ringsaturn/tzf-wasm)**, the wasm build of the Rust port of **[tzf](https://github.com/ringsaturn/tzf)** (Go). It carries simplified boundary polygons in a separate 4MB `.wasm` asset, loaded by `fetch` with no filesystem, and answers any coordinate. Its bundled dataset is the simplified one: [its own accuracy notes](https://github.com/ringsaturn/tzf#accuracy) put boundaries within about 110m of the full-precision border, which is exactly the strip where this package spends its effort. On an edge runtime that needs arbitrary coordinates it is the better fit; for a fixed list of points near borders, it is not exact and this is.
+- **geo-tz** itself, if you can ship its `data/` directory and set `GEO_TZ_DATA_PATH`.
+- **[@photostructure/tz-lookup](https://github.com/photostructure/tz-lookup)**, the maintained raster, which this package uses as its fallback.
+
+People have asked geo-tz for a smaller dataset for years: in 2018 its maintainer reopened [an issue about shipping a subset](https://github.com/evansiroky/node-geo-tz/issues/75) to say "that'd make a good feature… I'm open to receiving a PR", and closed it two and a half months later with a commit that added in-memory caching of lookup areas rather than a smaller download. [A Lambda user asking the same in 2024](https://github.com/evansiroky/node-geo-tz/issues/170) has had no reply from the maintainer. Narrowing the *dataset* is what people ask for; resolving a *known point set* instead is the answer I could not find packaged anywhere, so people write the same script by hand: resolve the points with geo-tz in `scripts/`, commit the JSON, keep geo-tz out of `src/`.
+
+This is that script, made reliable: probed radii so nearby coordinates still resolve, a `check` command for CI, and the geo-tz version recorded in the table.
 
 ## Keeping the table current
 
