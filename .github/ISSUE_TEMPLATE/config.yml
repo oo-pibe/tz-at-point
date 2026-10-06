@@ -3,3 +3,6 @@ contact_links:
   - name: Security report
     url: https://github.com/oo-pibe/tz-at-point/security/advisories/new
     about: Report a vulnerability privately instead of opening an issue.
+  - name: Security report by email
+    url: mailto:contact@roadtokickoff.com?subject=tz-at-point%20security
+    about: The same, by email, if you'd rather not use GitHub for it.

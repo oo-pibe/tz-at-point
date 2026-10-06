@@ -24,7 +24,8 @@
   },
   "homepage": "https://github.com/oo-pibe/tz-at-point#readme",
   "bugs": {
-    "url": "https://github.com/oo-pibe/tz-at-point/issues"
+    "url": "https://github.com/oo-pibe/tz-at-point/issues",
+    "email": "contact@roadtokickoff.com"
   },
   "type": "module",
   "types": "./dist/index.d.ts",
