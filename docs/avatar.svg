@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Two eyes peeking over a dark rail on a yellow field">
-  <!-- The oo-pibe account avatar: "oo" are the eyes, the pibe is the kid peeking over the terrace
-       rail. Drawn for GitHub's circular crop; nothing here belongs to any one repository. -->
+  <!-- The oo-pibe account avatar: two eyes over a rail. Drawn for GitHub's circular crop;
+       nothing here belongs to any one repository. -->
   <rect width="1024" height="1024" fill="#f2b705"/>
   <rect x="0" y="600" width="1024" height="424" fill="#1f2328"/>
   <circle cx="372" cy="472" r="124" fill="#ffffff"/>

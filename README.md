@@ -213,7 +213,7 @@ Measured on 2026-09-23:
 | Runtime dependencies | one, the raster; `tz-at-point/core` keeps it out of your bundle |
 | Tests | 137, including bundled runs with file reads denied and a lookup checked against a brute-force scan |
 
-Timings are from [`scripts/bench.mjs`](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/bench.mjs) on one quiet Apple-silicon machine under Node 25; one reviewer's runs on a loaded machine came out two to three times slower, and startup moves with how your points are spread. Run it on yours (`node --expose-gc scripts/bench.mjs`) rather than trusting mine.
+Timings are from [`scripts/bench.mjs`](https://github.com/oo-pibe/tz-at-point/blob/main/scripts/bench.mjs) on one quiet machine under Node 25; one reviewer's runs on a loaded machine came out two to three times slower, and startup moves with how your points are spread. Run it on yours (`node --expose-gc scripts/bench.mjs`) rather than trusting mine.
 
 During development the radius prober was also fuzzed differentially against geo-tz, and the suite was checked with mutation testing. Neither runs in CI. The fuzzer's one real find was a lobe of another zone dipping a metre or so inside a stored 130m radius, between the rings the prober sampled; [`test/radius.test.ts`](https://github.com/oo-pibe/tz-at-point/blob/main/test/radius.test.ts) keeps that case.
 
