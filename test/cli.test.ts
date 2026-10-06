@@ -462,3 +462,17 @@ test('--version reads the version from the package.json above src/, not from a c
   assert.equal(r.status, 0, r.stderr);
   assert.equal(r.stdout, '0.0.0-probe\n');
 });
+
+test('an output symlink that points at a file which is not a table is never overwritten', () => {
+  // Following a symlink at -o is a feature; replacing whatever it points at is not. Today this holds
+  // because the existing file is read as a table before anything is written; this pins it.
+  const w = workspace(LANDMARKS.slice(0, 1));
+  const secret = join(w.dir, 'secret.txt');
+  writeFileSync(secret, 'not a table\n');
+  symlinkSync('secret.txt', w.out);
+  const r = run('build', w.points, '-o', w.out);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /not valid JSON/);
+  assert.equal(readFileSync(secret, 'utf8'), 'not a table\n');
+  assert.ok(lstatSync(w.out).isSymbolicLink());
+});

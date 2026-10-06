@@ -34,7 +34,10 @@ export const isRadius = (n: unknown): n is number =>
   Number.isInteger(n) && (n as number) >= 0 && (n as number) <= MAX_RADIUS && (n as number) % RADIUS_STEP === 0;
 
 /** An IANA zone name: `UTC`, `Etc/GMT+12`, `America/Argentina/Buenos_Aires`. Nothing else reaches callers. */
-export const isZone = (zone: unknown): zone is string => typeof zone === 'string' && /^[\w+-]{1,32}(\/[\w+-]{1,32}){0,2}$/.test(zone);
+// Also not a name Object.prototype already has: a consumer that keys a plain object by zone would
+// otherwise have "__proto__" or "constructor" handed to it from a hostile table. No IANA name collides.
+export const isZone = (zone: unknown): zone is string =>
+  typeof zone === 'string' && /^[\w+-]{1,32}(\/[\w+-]{1,32}){0,2}$/.test(zone) && !(zone in Object.prototype);
 
 /** True for a JSON-ish object, including one from another realm (whose Object.prototype is not ours). */
 const isPlainObject = (value: unknown): value is Record<string, unknown> => {

@@ -75,3 +75,12 @@ test('attribution is optional, but if present it must be text, as the type says'
     assert.throws(() => readTable({ v: 1, attribution: bad, points: {} }), /attribution must be a string/, JSON.stringify(bad));
   }
 });
+
+test('a zone name that is also an Object.prototype property is refused, so it never reaches a consumer', () => {
+  // `at(...).zone` ends up as a key in callers' caches. "__proto__" would pollute Object.prototype there,
+  // and no honest table carries it: Intl rejects every one of these names.
+  for (const zone of ['__proto__', 'constructor', 'toString', 'valueOf', 'hasOwnProperty']) {
+    assert.throws(() => readTable({ v: 1, points: { '0.0000,0.0000': [zone, 250] } }), /has an invalid zone name/, zone);
+  }
+  assert.equal(readTable({ v: 1, points: { '0.0000,0.0000': ['Etc/UTC', 250] } })[0].zone, 'Etc/UTC');
+});

@@ -15,6 +15,7 @@ By taking part you agree to the [code of conduct](CODE_OF_CONDUCT.md).
 
 A few house rules:
 
+- Publish only through the release workflow. `.npmrc` sets `ignore-scripts`, which also disables `prepack`, so a local `npm publish` would ship a tarball with no `dist/`.
 - Write the failing test first. Every behaviour change in this repo has one; packaging and CI fixes are the exception, because what they change is the release, not the code.
 - The lookup path stays free of Node APIs and file reads. `test/bundle.test.ts` enforces it by running a bundled lookup with file reads denied.
 - Changing a CLI flag, a printed message or a public export means updating `skills/tz-at-point/references/`. `test/docs.test.ts` fails until you do.

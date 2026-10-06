@@ -9,7 +9,7 @@ import { parseArgs, type ParseArgsOptionsConfig } from 'node:util';
 import { keyOf, parseKey } from './key.ts';
 import { pointsFromCsv, pointsFromJson, type Point } from './points.ts';
 import { resolve, type Find } from './radius.ts';
-import { formatTable, isRadius, MAX_RADIUS, RADIUS_STEP, readTable, tableGeoTz, tableMaxRadius } from './table.ts';
+import { formatTable, isRadius, isZone, MAX_RADIUS, RADIUS_STEP, readTable, tableGeoTz, tableMaxRadius } from './table.ts';
 import { printable } from './text.ts';
 
 const USAGE = `usage:
@@ -244,6 +244,8 @@ async function build(args: string[]): Promise<number> {
       for (const key of todo) {
         const [zone, radius] = resolve(find, ...parseKey(key), maxRadius);
         if (!zone) throw new Error(`no zone found for ${key}`);
+        // Checked before anything is written, not only when the table is read back afterwards.
+        if (!isZone(zone)) throw new Error(`${key}: geo-tz returned an invalid zone name`);
         table.set(key, [zone, radius]);
       }
       // The table answers for the rounded key. Within a few metres of a border the point itself can be across it.

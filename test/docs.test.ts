@@ -96,7 +96,7 @@ const MESSAGES = [
   'lat and lng must be decimal numbers in range', 'is not a canonical point key', 'must map to [zone, radius]',
   'has an invalid zone name', 'has radius', 'unsupported version', 'must be a plain object',
   'unknown option', 'needs a value', 'does not take a value', 'no such file or directory', 'no such directory',
-  'not writable', 'is a directory', 'not a directory', 'permission denied', 'symlink loop', 'name too long', 'has no points', 'attribution must be a string', 'still records geo-tz', 'new points were resolved with',
+  'not writable', 'is a directory', 'not a directory', 'permission denied', 'symlink loop', 'name too long', 'has no points', 'attribution must be a string', 'returned an invalid zone name', 'still records geo-tz', 'new points were resolved with',
 ];
 
 test('the CLI reference covers every flag and every message', () => {

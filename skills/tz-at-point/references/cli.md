@@ -16,7 +16,7 @@ Adds every point missing from the table and never removes an entry. It never re-
 **Points file** (chosen by extension, case-insensitive):
 
 - `.json`: an array of `[lat, lng]` pairs or `{ "lat": …, "lng": … }` objects. Extra fields are ignored.
-- `.csv`: a header row with `lat` and `lng` columns in any order; other columns are ignored. Fields may be double-quoted, with `""` for a quote. Blank lines are skipped. Quoted line breaks are not supported. Numbers must be plain decimals (`51.5561`, `-0.2794`).
+- `.csv`: a header row with `lat` and `lng` columns in any order; other columns are ignored. If a header name repeats, the first column with that name is used. Fields may be double-quoted, with `""` for a quote. Blank lines are skipped. Quoted line breaks are not supported. Numbers must be plain decimals (`51.5561`, `-0.2794`).
 - A byte-order mark is ignored in both.
 
 **Flags**
@@ -81,6 +81,7 @@ Every error line starts with `tz-at-point: ` and exits 2.
 | `--check and --refresh cannot be combined` | Both flags given |
 | `--max-radius must be a multiple of 10 from 0 to 1000` | Bad `--max-radius` |
 | `no zone found for KEY` | geo-tz returned nothing for a coordinate |
+| `KEY: geo-tz returned an invalid zone name` | The installed geo-tz (or a dataset `GEO_TZ_DATA_PATH` pointed it at) answered with something that is not a zone name; nothing was written |
 | `JSON points must be an array` | A JSON points file that isn't an array |
 | `row 3: expected [lat, lng] or { lat, lng } with numbers in range` | A bad JSON row (strings, out of range, wrong length) |
 | `CSV header must have lat and lng columns` | Header missing `lat` or `lng` (other names like `latitude` aren't recognised) |
