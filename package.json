@@ -79,7 +79,7 @@
   "devDependencies": {
     "@types/node": "^22",
     "esbuild": "^0.28.2",
-    "geo-tz": "8.1.9",
+    "geo-tz": "8.1.10",
     "typescript": "^7.0.2"
   },
   "sideEffects": false,
